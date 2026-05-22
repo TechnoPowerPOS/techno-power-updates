@@ -1,0 +1,507 @@
+
+import { LicenseInfo } from '../types';
+
+export interface PlanLimits {
+    isActive?: boolean;
+    trialDays?: number;
+    maxWarehouses: number;
+    maxTreasuries: number;
+    maxProducts: number;
+    maxUsers: number;
+    maxSuppliers: number;
+    maxEmployees: number;
+    maxDailySales: number;
+    maxYearlySales: number;
+    maxDailyTreasuryTransactions: number;
+    hasAI: boolean;
+    hasEnterprise: boolean;
+    hasPartners: boolean;
+    hasShipping: boolean;
+    hasAccounting: boolean;
+    hasEmployeePerformance: boolean;
+    hasInventoryAudit: boolean;
+    hasStockTransfer: boolean;
+    hasInstallments: boolean;
+    hasCustomerSatisfaction: boolean;
+    hasActivityLogs: boolean;
+    hasBackup: boolean;
+    hasLoyalty: boolean;
+    hasMultipleInvoiceDesigns: boolean;
+    hasNotifications: boolean;
+    maxBranches: number;
+    hasWhatsApp: boolean;
+    hasAdvancedReports: boolean;
+    hasBarcode: boolean;
+    hasCreditCustomer: boolean;
+    hasAPI: boolean;
+    hasExcelExport: boolean;
+    hasExcelImport: boolean;
+    hasLogoUpload: boolean;
+    hasCommissions: boolean;
+    hasEcommerceAPI: boolean;
+    hasProEmail: boolean;
+    hasHR: boolean;
+    hasOperations: boolean;
+    hasAccounts: boolean;
+    hasHRPersonnel: boolean;
+    hasHRContracts: boolean;
+    hasHRSalaries: boolean;
+    hasHRVacations: boolean;
+    hasHRPerformance: boolean;
+    hasHRCommissions: boolean;
+    hasOpsWorkOrders: boolean;
+    hasOpsProduction: boolean;
+    hasAccountingBudget: boolean;
+    maxCustomers: number;
+    hasExpenses: boolean;
+    hasDetailedTreasury: boolean;
+    hasChecksManagement: boolean;
+    hasAccountStatements: boolean;
+    hasNotes: boolean;
+    hasFinancialSettlements: boolean;
+    hasCustomUi: boolean;
+}
+
+const defaultBooleans = {
+    isActive: true,
+    trialDays: 7,
+    hasWhatsApp: false,
+    hasAdvancedReports: false,
+    hasBarcode: true,
+    hasCreditCustomer: false,
+    hasAPI: false,
+    hasExcelExport: false,
+    hasExcelImport: false,
+    hasLogoUpload: false,
+    hasCommissions: false,
+    hasEcommerceAPI: false,
+    hasProEmail: false,
+    hasHR: false,
+    hasOperations: false,
+    hasAccounts: false,
+    hasHRPersonnel: false,
+    hasHRContracts: false,
+    hasHRSalaries: false,
+    hasHRVacations: false,
+    hasHRPerformance: false,
+    hasHRCommissions: false,
+    hasOpsWorkOrders: false,
+    hasOpsProduction: false,
+    hasAccountingBudget: false,
+    hasExpenses: false,
+    hasDetailedTreasury: false,
+    hasChecksManagement: false,
+    hasAccountStatements: false,
+    hasNotes: false,
+    hasFinancialSettlements: false,
+    hasCustomUi: false
+};
+
+const fullBooleans = {
+    isActive: true,
+    trialDays: 7,
+    hasWhatsApp: true,
+    hasAdvancedReports: true,
+    hasBarcode: true,
+    hasCreditCustomer: true,
+    hasAPI: true,
+    hasExcelExport: true,
+    hasExcelImport: true,
+    hasLogoUpload: true,
+    hasCommissions: true,
+    hasEcommerceAPI: true,
+    hasProEmail: false,
+    hasHR: true,
+    hasOperations: true,
+    hasAccounts: true,
+    hasHRPersonnel: true,
+    hasHRContracts: true,
+    hasHRSalaries: true,
+    hasHRVacations: true,
+    hasHRPerformance: true,
+    hasHRCommissions: true,
+    hasOpsWorkOrders: true,
+    hasOpsProduction: true,
+    hasAccountingBudget: true,
+    hasExpenses: true,
+    hasDetailedTreasury: true,
+    hasChecksManagement: true,
+    hasAccountStatements: true,
+    hasNotes: true,
+    hasFinancialSettlements: true,
+    hasCustomUi: true
+};
+
+export const PLAN_LIMITS: Record<string, PlanLimits> = {
+    'Free': {
+        maxWarehouses: 1,
+        maxTreasuries: 1,
+        maxProducts: 30,
+        maxUsers: 1,
+        maxSuppliers: 5,
+        maxEmployees: 1,
+        maxDailySales: 5,
+        maxYearlySales: 800,
+        maxDailyTreasuryTransactions: 2,
+        hasAI: false,
+        hasEnterprise: false,
+        hasPartners: false,
+        hasShipping: false,
+        hasAccounting: false,
+        hasEmployeePerformance: false,
+        hasInventoryAudit: false,
+        hasStockTransfer: false,
+        hasInstallments: false,
+        hasCustomerSatisfaction: false,
+        hasActivityLogs: false,
+        hasBackup: false,
+        hasLoyalty: false,
+        hasMultipleInvoiceDesigns: false,
+        hasNotifications: false,
+        maxBranches: 1,
+        ...defaultBooleans,
+        hasBarcode: true,
+        maxCustomers: 50
+    },
+    'Trial': {
+        maxWarehouses: 999,
+        maxTreasuries: 999,
+        maxProducts: 999999,
+        maxUsers: 999,
+        maxSuppliers: 9999,
+        maxEmployees: 999,
+        maxDailySales: 999999,
+        maxYearlySales: 9999999,
+        maxDailyTreasuryTransactions: 999999,
+        hasAI: true,
+        hasEnterprise: true,
+        hasPartners: true,
+        hasShipping: true,
+        hasAccounting: true,
+        hasEmployeePerformance: true,
+        hasInventoryAudit: true,
+        hasStockTransfer: true,
+        hasInstallments: true,
+        hasCustomerSatisfaction: true,
+        hasActivityLogs: true,
+        hasBackup: false,
+        hasLoyalty: true,
+        hasMultipleInvoiceDesigns: true,
+        hasNotifications: true,
+        maxBranches: 999,
+        ...fullBooleans,
+        hasProEmail: true,
+        maxCustomers: 999999
+    },
+    'Monthly': {
+        maxWarehouses: 2,
+        maxTreasuries: 2,
+        maxProducts: 999999,
+        maxUsers: 5,
+        maxSuppliers: 10,
+        maxEmployees: 3,
+        maxDailySales: 999999,
+        maxYearlySales: 9999999,
+        maxDailyTreasuryTransactions: 999999,
+        hasAI: false,
+        hasEnterprise: false,
+        hasPartners: true,
+        hasShipping: true,
+        hasAccounting: true,
+        hasEmployeePerformance: true,
+        hasInventoryAudit: true,
+        hasStockTransfer: true,
+        hasInstallments: true,
+        hasCustomerSatisfaction: true,
+        hasActivityLogs: true,
+        hasBackup: true,
+        hasLoyalty: true,
+        hasMultipleInvoiceDesigns: true,
+        hasNotifications: true,
+        maxBranches: 5,
+        ...defaultBooleans,
+        hasAdvancedReports: true,
+        hasWhatsApp: false,
+        hasExcelExport: true,
+        hasLogoUpload: true,
+        maxCustomers: 500
+    },
+    'Semiannual': {
+        maxWarehouses: 5,
+        maxTreasuries: 3,
+        maxProducts: 999999,
+        maxUsers: 10,
+        maxSuppliers: 50,
+        maxEmployees: 10,
+        maxDailySales: 999999,
+        maxYearlySales: 9999999,
+        maxDailyTreasuryTransactions: 999999,
+        hasAI: true,
+        hasEnterprise: false,
+        hasPartners: true,
+        hasShipping: true,
+        hasAccounting: true,
+        hasEmployeePerformance: true,
+        hasInventoryAudit: true,
+        hasStockTransfer: true,
+        hasInstallments: true,
+        hasCustomerSatisfaction: true,
+        hasActivityLogs: true,
+        hasBackup: true,
+        hasLoyalty: true,
+        hasMultipleInvoiceDesigns: true,
+        hasNotifications: true,
+        maxBranches: 999999,
+        ...fullBooleans,
+        hasAPI: false
+    },
+    'Yearly': {
+        maxWarehouses: 25,
+        maxTreasuries: 15,
+        maxProducts: 999999,
+        maxUsers: 50,
+        maxSuppliers: 999,
+        maxEmployees: 50,
+        maxDailySales: 999999,
+        maxYearlySales: 9999999,
+        maxDailyTreasuryTransactions: 999999,
+        hasAI: true,
+        hasEnterprise: true,
+        hasPartners: true,
+        hasShipping: true,
+        hasAccounting: true,
+        hasEmployeePerformance: true,
+        hasInventoryAudit: true,
+        hasStockTransfer: true,
+        hasInstallments: true,
+        hasCustomerSatisfaction: true,
+        hasActivityLogs: true,
+        hasBackup: true,
+        hasLoyalty: true,
+        hasMultipleInvoiceDesigns: true,
+        hasNotifications: true,
+        maxBranches: 999999,
+        ...fullBooleans
+    },
+    'Lifetime': {
+        maxWarehouses: 999,
+        maxTreasuries: 999,
+        maxProducts: 999999,
+        maxUsers: 999,
+        maxSuppliers: 9999,
+        maxEmployees: 999,
+        maxDailySales: 999999,
+        maxYearlySales: 9999999,
+        maxDailyTreasuryTransactions: 999999,
+        hasAI: true,
+        hasEnterprise: true,
+        hasPartners: true,
+        hasShipping: true,
+        hasAccounting: true,
+        hasEmployeePerformance: true,
+        hasInventoryAudit: true,
+        hasStockTransfer: true,
+        hasInstallments: true,
+        hasCustomerSatisfaction: true,
+        hasActivityLogs: true,
+        hasBackup: true,
+        hasLoyalty: true,
+        hasMultipleInvoiceDesigns: true,
+        hasNotifications: true,
+        maxBranches: 999999,
+        ...fullBooleans
+    },
+    'Basic': {
+        maxWarehouses: 1,
+        maxTreasuries: 1,
+        maxProducts: 200,
+        maxUsers: 2,
+        maxSuppliers: 20,
+        maxEmployees: 5,
+        maxDailySales: 999,
+        maxYearlySales: 99999,
+        maxDailyTreasuryTransactions: 100,
+        hasAI: false,
+        hasEnterprise: false,
+        hasPartners: false,
+        hasShipping: false,
+        hasAccounting: true,
+        hasEmployeePerformance: false,
+        hasInventoryAudit: false,
+        hasStockTransfer: false,
+        hasInstallments: false,
+        hasCustomerSatisfaction: false,
+        hasActivityLogs: true,
+        hasBackup: true,
+        hasLoyalty: false,
+        hasMultipleInvoiceDesigns: false,
+        hasNotifications: false,
+        maxBranches: 1,
+        ...defaultBooleans,
+        hasAdvancedReports: true,
+        hasExcelExport: true,
+        hasLogoUpload: true
+    },
+    'Pro': {
+        maxWarehouses: 5,
+        maxTreasuries: 5,
+        maxProducts: 999999,
+        maxUsers: 10,
+        maxSuppliers: 100,
+        maxEmployees: 25,
+        maxDailySales: 999999,
+        maxYearlySales: 9999999,
+        maxDailyTreasuryTransactions: 999999,
+        hasAI: true,
+        hasEnterprise: false,
+        hasPartners: true,
+        hasShipping: true,
+        hasAccounting: true,
+        hasEmployeePerformance: true,
+        hasInventoryAudit: true,
+        hasStockTransfer: true,
+        hasInstallments: true,
+        hasCustomerSatisfaction: true,
+        hasActivityLogs: true,
+        hasBackup: true,
+        hasLoyalty: true,
+        hasMultipleInvoiceDesigns: true,
+        hasNotifications: true,
+        maxBranches: 3,
+        ...fullBooleans,
+        hasAPI: true,
+        hasProEmail: true
+    },
+    'Business': {
+        maxWarehouses: 999999,
+        maxTreasuries: 999999,
+        maxProducts: 999999,
+        maxUsers: 999,
+        maxSuppliers: 9999,
+        maxEmployees: 999,
+        maxDailySales: 999999,
+        maxYearlySales: 9999999,
+        maxDailyTreasuryTransactions: 999999,
+        hasAI: true,
+        hasEnterprise: true,
+        hasPartners: true,
+        hasShipping: true,
+        hasAccounting: true,
+        hasEmployeePerformance: true,
+        hasInventoryAudit: true,
+        hasStockTransfer: true,
+        hasInstallments: true,
+        hasCustomerSatisfaction: true,
+        hasActivityLogs: true,
+        hasBackup: true,
+        hasLoyalty: true,
+        hasMultipleInvoiceDesigns: true,
+        hasNotifications: true,
+        maxBranches: 999999,
+        ...fullBooleans,
+        hasProEmail: true
+    },
+    'Basic Year': {
+        maxWarehouses: 1,
+        maxTreasuries: 1,
+        maxProducts: 250,
+        maxUsers: 2,
+        maxSuppliers: 25,
+        maxEmployees: 5,
+        maxDailySales: 999,
+        maxYearlySales: 99999,
+        maxDailyTreasuryTransactions: 100,
+        hasAI: false,
+        hasEnterprise: false,
+        hasPartners: false,
+        hasShipping: false,
+        hasAccounting: true,
+        hasEmployeePerformance: false,
+        hasInventoryAudit: false,
+        hasStockTransfer: false,
+        hasInstallments: false,
+        hasCustomerSatisfaction: false,
+        hasActivityLogs: true,
+        hasBackup: true,
+        hasLoyalty: false,
+        hasMultipleInvoiceDesigns: false,
+        hasNotifications: false,
+        maxBranches: 1,
+        ...defaultBooleans,
+        hasAdvancedReports: true,
+        hasExcelExport: true,
+        hasLogoUpload: true
+    },
+    'Pro Year': {
+        maxWarehouses: 10,
+        maxTreasuries: 10,
+        maxProducts: 999999,
+        maxUsers: 15,
+        maxSuppliers: 200,
+        maxEmployees: 30,
+        maxDailySales: 999999,
+        maxYearlySales: 9999999,
+        maxDailyTreasuryTransactions: 999999,
+        hasAI: true,
+        hasEnterprise: false,
+        hasPartners: true,
+        hasShipping: true,
+        hasAccounting: true,
+        hasEmployeePerformance: true,
+        hasInventoryAudit: true,
+        hasStockTransfer: true,
+        hasInstallments: true,
+        hasCustomerSatisfaction: true,
+        hasActivityLogs: true,
+        hasBackup: true,
+        hasLoyalty: true,
+        hasMultipleInvoiceDesigns: true,
+        hasNotifications: true,
+        maxBranches: 5,
+        ...fullBooleans,
+        hasAPI: true,
+        hasProEmail: true
+    },
+    'Business Year': {
+        maxWarehouses: 999999,
+        maxTreasuries: 999999,
+        maxProducts: 999999,
+        maxUsers: 999,
+        maxSuppliers: 9999,
+        maxEmployees: 999,
+        maxDailySales: 999999,
+        maxYearlySales: 9999999,
+        maxDailyTreasuryTransactions: 999999,
+        hasAI: true,
+        hasEnterprise: true,
+        hasPartners: true,
+        hasShipping: true,
+        hasAccounting: true,
+        hasEmployeePerformance: true,
+        hasInventoryAudit: true,
+        hasStockTransfer: true,
+        hasInstallments: true,
+        hasCustomerSatisfaction: true,
+        hasActivityLogs: true,
+        hasBackup: true,
+        hasLoyalty: true,
+        hasMultipleInvoiceDesigns: true,
+        hasNotifications: true,
+        maxBranches: 999999,
+        ...fullBooleans,
+        hasProEmail: true
+    }
+};
+
+let dynamicPlanLimits: Record<string, PlanLimits> | null = null;
+
+export function setDynamicPlanLimits(limits: Record<string, PlanLimits>) {
+    dynamicPlanLimits = limits;
+}
+
+export function getPlanLimits(type: string): PlanLimits {
+    const limitsConfig = dynamicPlanLimits || PLAN_LIMITS;
+    const plan = limitsConfig[type] || limitsConfig['Free'];
+    // Merge with Free defaults to ensure all properties exist
+    return { ...PLAN_LIMITS['Free'], ...plan };
+}

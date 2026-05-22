@@ -1,0 +1,309 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // --- Primitives ---
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+    function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
+    function isAdmin() { 
+      return request.auth != null && 
+             request.auth.token.email_verified == true && 
+             (request.auth.token.email == 'm7mdshipl@gmail.com' || request.auth.token.email == 'admin@techno.com');
+    }
+
+    // --- Global Safety Net ---
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Admin and System ---
+    match /admin/{docId} {
+      allow get: if true; 
+      allow list: if true;
+      allow write: if true;
+    }
+    match /adminSettings/{docId} {
+      allow get: if true;
+      allow list, write: if true;
+    }
+    match /system_updates/{docId} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+    match /global_notifications/{docId} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+    match /device_notifications/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+    match /app_policies/{docId} {
+      allow get: if true;
+      allow write: if true;
+    }
+
+    // --- Devices ---
+    function isValidDevice(data) {
+      return data.keys().hasAll(['deviceId', 'ip', 'lastSeen', 'isBlocked']) &&
+             data.deviceId is string && data.deviceId.size() <= 128 &&
+             data.ip is string && data.ip.size() <= 50 &&
+             data.lastSeen is string && data.lastSeen.size() <= 100 &&
+             data.isBlocked is bool;
+    }
+
+    match /devices/{deviceId} {
+      allow get: if isValidId(deviceId);
+      allow list: if true;
+      allow create: if isValidId(deviceId);
+      allow update: if isValidId(deviceId) && (
+        isAdmin() || 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ip', 'lastSeen', 'osInfo', 'adminMessage', 'adminMessageTimestamp', 'needsDataCompletion'])
+      );
+      allow delete: if true;
+    }
+
+    // --- Licenses & Trials ---
+    function isValidLicense(data) {
+      return data.keys().hasAll(['type', 'status', 'createdAt']) &&
+             data.type is string && data.status in ['pending', 'active', 'blocked', 'expired'] &&
+             data.createdAt is string;
+    }
+
+    match /licenses/{licenseKey} {
+      allow get: if true; // Everyone can check a license key
+      allow list: if true;
+      allow create: if true;
+      allow update: if isValidId(licenseKey) && (
+        isAdmin() || 
+        (
+          existing().status in ['pending', 'active'] && 
+          incoming().diff(existing()).affectedKeys().hasOnly(['deviceId', 'deviceIds', 'customerId', 'status', 'activatedAt', 'expiresAt']) &&
+          incoming().status == 'active' && incoming().activatedAt != null
+        )
+      );
+      allow delete: if true;
+    }
+
+    match /trials/{deviceId} {
+      allow get: if isValidId(deviceId);
+      allow create: if isValidId(deviceId) && incoming().deviceId == deviceId && incoming().keys().hasAll(['deviceId', 'usedAt', 'expiresAt']);
+      allow list, update, delete: if true;
+    }
+
+    // --- Financial & Treasury ---
+    match /treasuries/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+    match /treasury_transactions/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+    match /financial_settlements/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+    match /installments/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+    match /sales/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+    match /acc_chart/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+    match /acc_expenses/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+    match /acc_assets/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+    match /acc_cost_centers/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+    match /acc_checks/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+
+    // --- HR & Operations ---
+    match /hr_personnel/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+    match /hr_attendance/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+    match /hr_payroll/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+    match /hr_contracts/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+    match /hr_requests/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+    match /op_work_orders/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+    match /op_workflow/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+    match /op_reservations/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+    match /op_rentals/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+    match /op_lease_contracts/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+    match /op_time_tracking/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+    match /op_manufacturing/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+
+    match /hr_performance/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+    match /hr_commissions/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+    match /products/{id} {
+      allow get, list: if true;
+       allow write: if true;
+    }
+    match /purchases/{id} {
+      allow get, list: if true;
+       allow write: if true;
+    }
+    match /sales_returns/{id} {
+      allow get, list: if true;
+       allow write: if true;
+    }
+    match /purchase_returns/{id} {
+      allow get, list: if true;
+       allow write: if true;
+    }
+    match /activity_logs/{id} {
+      allow get, list: if true;
+       allow write: if true;
+    }
+    match /stock_transfers/{id} {
+      allow get, list: if true;
+       allow write: if true;
+    }
+    match /inventory_audits/{id} {
+      allow get, list: if true;
+       allow write: if true;
+    }
+    match /customer_transactions/{id} {
+      allow get, list: if true;
+       allow write: if true;
+    }
+    
+    // --- Customers ---
+    match /customers/{customerId} {
+      allow get, list: if true;
+      allow delete: if true;
+      allow create: if true;
+      allow update: if true;
+
+      match /history/{historyId} {
+        allow read: if true;
+        allow create: if true;
+        allow update, delete: if true;
+      }
+    }
+
+    match /app_suggestions/{docId} {
+      allow create: if true;
+      allow get, list, update, delete: if true;
+    }
+    
+    match /app_tampering_logs/{id} {
+      allow get, list: if true;
+      allow create: if true;
+      allow update, delete: if true;
+    }
+    match /app_support_tickets/{id} {
+      allow create: if true;
+      allow get, list, update, delete: if true;
+    }
+
+    match /notifications/{id} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // --- Affiliates ---
+    match /affiliates/{id} {
+      allow get: if true;
+      allow list: if true;
+      allow write: if true;
+    }
+    match /affiliate_referrals/{id} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if isValidId(id);
+      allow update, delete: if true;
+    }
+    match /affiliate_payments/{id} {
+      allow get: if true;
+      allow list: if true;
+      allow write: if true;
+    }
+  
+    match /suppliers/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+
+    match /partners/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+
+    match /employees/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+
+    match /manufacturingOrders/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+
+    match /supplier_transactions/{id} {
+      allow get, list: if true;
+      allow write: if true;
+    }
+}
+}

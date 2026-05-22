@@ -1,0 +1,488 @@
+{
+  "entities": {
+    "License": {
+      "title": "License",
+      "description": "A generated license key for the software.",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["Trial", "Monthly", "Semiannual", "Yearly", "Lifetime"] },
+        "deviceId": { "type": "string", "description": "The Hardware ID bound to this license" },
+        "status": { "type": "string", "enum": ["pending", "active", "blocked", "expired"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "activatedAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "customerId": { "type": "string", "description": "UID of the registered customer" }
+      },
+      "required": ["type", "status", "createdAt"]
+    },
+    "Trial": {
+      "title": "Trial",
+      "description": "Records trial usage by Hardware ID.",
+      "type": "object",
+      "properties": {
+        "deviceId": { "type": "string" },
+        "usedAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["deviceId", "usedAt", "expiresAt"]
+    },
+    "CustomerIdentity": {
+      "title": "CustomerIdentity",
+      "description": "Stores user registration info locally for licenses.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "company": { "type": "string" },
+        "registeredAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "registeredAt"]
+    },
+    "AdminSettings": {
+      "title": "AdminSettings",
+      "description": "Stores global admin settings like pricing.",
+      "type": "object",
+      "properties": {
+        "monthly": { "type": "object" },
+        "semiannual": { "type": "object" },
+        "annual": { "type": "object" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["monthly", "semiannual", "annual"]
+    },
+    "AppPolicies": {
+      "title": "AppPolicies",
+      "description": "Stores text for app policies and user guide.",
+      "type": "object",
+      "properties": {
+        "privacyPolicy": { "type": "string" },
+        "termsOfUse": { "type": "string" },
+        "intellectualProperty": { "type": "string" },
+        "userGuide": { "type": "string" }
+      },
+      "required": ["privacyPolicy", "termsOfUse", "intellectualProperty", "userGuide"]
+    },
+    "AppSuggestions": {
+      "title": "AppSuggestions",
+      "description": "User feedback and suggestions.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "suggestionText": { "type": "string" },
+        "phone": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "suggestionText", "phone", "createdAt"]
+    },
+    "GlobalNotifications": {
+      "title": "GlobalNotifications",
+      "description": "System-wide notifications.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "type": { "type": "string", "enum": ["info", "warning", "success"] },
+        "sentAt": { "type": "string", "format": "date-time" },
+        "readBy": { "type": "array", "items": { "type": "string" } },
+        "targetUserId": { "type": "string" }
+      },
+      "required": ["title", "body", "type", "sentAt", "readBy"]
+    },
+    "Device": {
+      "title": "Device",
+      "description": "Tracks devices using the software to manage IPs and block status.",
+      "type": "object",
+      "properties": {
+        "deviceId": { "type": "string" },
+        "ip": { "type": "string" },
+        "lastSeen": { "type": "string", "format": "date-time" },
+        "isBlocked": { "type": "boolean" },
+        "osInfo": { "type": "string" }
+      },
+      "required": ["deviceId", "ip", "lastSeen", "isBlocked"]
+    },
+    "HRPersonnel": {
+      "title": "HRPersonnel",
+      "description": "Employee record in the HR system.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "position": { "type": "string" },
+        "department": { "type": "string" },
+        "joinDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["Active", "On Leave", "Terminated"] }
+      },
+      "required": ["name", "position", "department", "status"]
+    },
+    "HRAttendance": {
+      "title": "HRAttendance",
+      "description": "Attendance log for employees.",
+      "type": "object",
+      "properties": {
+        "employeeName": { "type": "string" },
+        "type": { "type": "string", "enum": ["IN", "OUT"] },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "location": { "type": "string" }
+      },
+      "required": ["employeeName", "type", "timestamp"]
+    },
+    "HRPayroll": {
+      "title": "HRPayroll",
+      "description": "Salary record for employees.",
+      "type": "object",
+      "properties": {
+        "employeeName": { "type": "string" },
+        "basicSalary": { "type": "number" },
+        "allowances": { "type": "number" },
+        "deductions": { "type": "number" },
+        "netSalary": { "type": "number" },
+        "month": { "type": "string" },
+        "status": { "type": "string", "enum": ["Processed", "Pending", "Paid"] }
+      },
+      "required": ["employeeName", "month", "status"]
+    },
+    "AccChart": {
+      "title": "AccChart",
+      "description": "An account in the Chart of Accounts.",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "nameAr": { "type": "string" },
+        "nameEn": { "type": "string" },
+        "type": { "type": "string", "enum": ["Asset", "Liability", "Equity", "Revenue", "Expense"] },
+        "parentId": { "type": "string", "description": "ID of the parent account if any" },
+        "balance": { "type": "number" }
+      },
+      "required": ["code", "nameAr", "type", "balance"]
+    },
+    "AccExpense": {
+      "title": "AccExpense",
+      "description": "A recorded expense.",
+      "type": "object",
+      "properties": {
+        "amount": { "type": "number" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "paidTo": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["Paid", "Pending"] }
+      },
+      "required": ["amount", "category", "date", "status"]
+    },
+    "AccAsset": {
+      "title": "AccAsset",
+      "description": "A fixed asset of the company.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["Real Estate", "Vehicle", "Equipments", "IT", "Office"] },
+        "value": { "type": "number" },
+        "purchaseDate": { "type": "string", "format": "date-time" },
+        "location": { "type": "string" },
+        "serial": { "type": "string" }
+      },
+      "required": ["name", "type", "value"]
+    },
+    "OpWorkOrder": {
+      "title": "OpWorkOrder",
+      "description": "A work order for operations tracking.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "customerName": { "type": "string" },
+        "status": { "type": "string", "enum": ["Pending", "In Progress", "Completed", "Canceled"] },
+        "priority": { "type": "string", "enum": ["Low", "Medium", "High"] },
+        "assignedTo": { "type": "string" },
+        "dueDate": { "type": "string", "format": "date-time" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "customerName", "status", "priority", "createdAt"]
+    },
+    "OpWorkflow": {
+      "title": "OpWorkflow",
+      "description": "A task in the workflow process.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "assignee": { "type": "string" },
+        "stage": { "type": "string", "enum": ["Backlog", "In Progress", "Review", "Completed"] },
+        "priority": { "type": "string", "enum": ["Low", "Medium", "High"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "assignee", "stage", "priority", "createdAt"]
+    },
+    "OpReservation": {
+      "title": "OpReservation",
+      "description": "A reservation or appointment.",
+      "type": "object",
+      "properties": {
+        "customerName": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "time": { "type": "string" },
+        "service": { "type": "string" },
+        "status": { "type": "string", "enum": ["Confirmed", "Pending", "Cancelled"] }
+      },
+      "required": ["customerName", "date", "time", "service", "status"]
+    },
+    "OpRental": {
+      "title": "OpRental",
+      "description": "A rental unit.",
+      "type": "object",
+      "properties": {
+        "unitNumber": { "type": "string" },
+        "type": { "type": "string" },
+        "price": { "type": "number" },
+        "status": { "type": "string", "enum": ["Available", "Rented", "Maintenance"] }
+      },
+      "required": ["unitNumber", "type", "price", "status"]
+    },
+    "OpLeaseContract": {
+      "title": "OpLeaseContract",
+      "description": "A lease contract for a rental unit.",
+      "type": "object",
+      "properties": {
+        "contractNumber": { "type": "string" },
+        "tenantName": { "type": "string" },
+        "unitNumber": { "type": "string" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "endDate": { "type": "string", "format": "date-time" },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string", "enum": ["Active", "Expired", "Terminated"] }
+      },
+      "required": ["contractNumber", "tenantName", "unitNumber", "startDate", "endDate", "totalAmount", "status"]
+    },
+    "OpTimeTracking": {
+      "title": "OpTimeTracking",
+      "description": "A log of time spent on projects or tasks.",
+      "type": "object",
+      "properties": {
+        "employeeName": { "type": "string" },
+        "project": { "type": "string" },
+        "taskName": { "type": "string" },
+        "hours": { "type": "number" },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["employeeName", "project", "taskName", "hours", "date"]
+    },
+    "OpManufacturing": {
+      "title": "OpManufacturing",
+      "description": "A manufacturing order.",
+      "type": "object",
+      "properties": {
+        "productName": { "type": "string" },
+        "quantity": { "type": "number" },
+        "assignedTo": { "type": "string" },
+        "status": { "type": "string", "enum": ["Planned", "In Production", "Quality Check", "Completed"] },
+        "startDate": { "type": "string", "format": "date-time" }
+      },
+      "required": ["productName", "quantity", "assignedTo", "status", "startDate"]
+    },
+    "Treasury": {
+      "title": "Treasury",
+      "description": "A cash or bank treasury.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "balance": { "type": "number" },
+        "currency": { "type": "string" },
+        "isDefault": { "type": "boolean" }
+      },
+      "required": ["name", "balance", "currency"]
+    },
+    "TreasuryTransaction": {
+      "title": "TreasuryTransaction",
+      "description": "A movement of funds in or out of a treasury.",
+      "type": "object",
+      "properties": {
+        "treasuryId": { "type": "string" },
+        "type": { "type": "string", "enum": ["Income", "Expense", "Transfer"] },
+        "amount": { "type": "number" },
+        "description": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "refId": { "type": "string", "description": "Reference ID (e.g. Sale ID, Payroll ID)" }
+      },
+      "required": ["treasuryId", "type", "amount", "date"]
+    },
+    "HRContract": {
+      "title": "HRContract",
+      "description": "An employment contract.",
+      "type": "object",
+      "properties": {
+        "employeeName": { "type": "string" },
+        "type": { "type": "string", "enum": ["Term", "Permanent", "Project Based"] },
+        "salary": { "type": "number" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "endDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["Active", "Expired", "Terminated"] }
+      },
+      "required": ["employeeName", "type", "salary", "startDate", "status"]
+    },
+    "HRRequest": {
+      "title": "HRRequest",
+      "description": "An internal request from an employee.",
+      "type": "object",
+      "properties": {
+        "employeeName": { "type": "string" },
+        "type": { "type": "string", "enum": ["Vacation", "Mission", "Loan", "Resignation"] },
+        "description": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["Approved", "Pending", "Rejected"] }
+      },
+      "required": ["employeeName", "type", "date", "status"]
+    },
+    "AccCostCenter": {
+      "title": "AccCostCenter",
+      "description": "A cost center for financial tracking.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "code": { "type": "string" },
+        "budget": { "type": "number" },
+        "spent": { "type": "number" },
+        "manager": { "type": "string" }
+      },
+      "required": ["name", "code", "budget", "spent"]
+    },
+    "AccCheck": {
+      "title": "AccCheck",
+      "description": "A financial check record.",
+      "type": "object",
+      "properties": {
+        "checkNumber": { "type": "string" },
+        "beneficiary": { "type": "string" },
+        "amount": { "type": "number" },
+        "dueDate": { "type": "string", "format": "date-time" },
+        "bank": { "type": "string" },
+        "status": { "type": "string", "enum": ["Issued", "Cashed", "Bounced", "Canceled"] }
+      },
+      "required": ["checkNumber", "beneficiary", "amount", "dueDate", "status"]
+    }
+  },
+  "firestore": {
+    "/hr_personnel/{id}": {
+      "schema": { "$ref": "#/entities/HRPersonnel" },
+      "description": "Stores employee records."
+    },
+    "/hr_attendance/{id}": {
+      "schema": { "$ref": "#/entities/HRAttendance" },
+      "description": "Stores attendance logs."
+    },
+    "/hr_payroll/{id}": {
+      "schema": { "$ref": "#/entities/HRPayroll" },
+      "description": "Stores payroll records."
+    },
+    "/hr_contracts/{id}": {
+      "schema": { "$ref": "#/entities/HRContract" },
+      "description": "Stores employee contracts."
+    },
+    "/hr_requests/{id}": {
+      "schema": { "$ref": "#/entities/HRRequest" },
+      "description": "Stores internal employee requests."
+    },
+    "/acc_chart/{id}": {
+      "schema": { "$ref": "#/entities/AccChart" },
+      "description": "Stores chart of accounts."
+    },
+    "/acc_expenses/{id}": {
+      "schema": { "$ref": "#/entities/AccExpense" },
+      "description": "Stores recorded expenses."
+    },
+    "/acc_assets/{id}": {
+      "schema": { "$ref": "#/entities/AccAsset" },
+      "description": "Stores fixed assets."
+    },
+    "/acc_cost_centers/{id}": {
+      "schema": { "$ref": "#/entities/AccCostCenter" },
+      "description": "Stores cost centers tracking."
+    },
+    "/acc_checks/{id}": {
+      "schema": { "$ref": "#/entities/AccCheck" },
+      "description": "Stores issued/received checks."
+    },
+    "/op_work_orders/{id}": {
+      "schema": { "$ref": "#/entities/OpWorkOrder" },
+      "description": "Stores operation work orders."
+    },
+    "/op_workflow/{id}": {
+      "schema": { "$ref": "#/entities/OpWorkflow" },
+      "description": "Stores the workflow tasks."
+    },
+    "/op_reservations/{id}": {
+      "schema": { "$ref": "#/entities/OpReservation" },
+      "description": "Stores appointments and reservations."
+    },
+    "/op_rentals/{id}": {
+      "schema": { "$ref": "#/entities/OpRental" },
+      "description": "Stores rental units."
+    },
+    "/op_lease_contracts/{id}": {
+      "schema": { "$ref": "#/entities/OpLeaseContract" },
+      "description": "Stores lease contracts."
+    },
+    "/op_time_tracking/{id}": {
+      "schema": { "$ref": "#/entities/OpTimeTracking" },
+      "description": "Stores time tracking logs."
+    },
+    "/op_manufacturing/{id}": {
+      "schema": { "$ref": "#/entities/OpManufacturing" },
+      "description": "Stores manufacturing orders."
+    },
+    "/treasuries/{id}": {
+      "schema": { "$ref": "#/entities/Treasury" },
+      "description": "Stores treasury records."
+    },
+    "/treasury_transactions/{id}": {
+      "schema": { "$ref": "#/entities/TreasuryTransaction" },
+      "description": "Stores treasury transaction logs."
+    },
+    "/devices/{deviceId}": {
+      "schema": { "$ref": "#/entities/Device" },
+      "description": "Tracks hardware IDs to monitor IP and blocked status by admin."
+    },
+    "/global_notifications/{docId}": {
+      "schema": { "$ref": "#/entities/GlobalNotifications" },
+      "description": "Stores notifications."
+    },
+    "/app_suggestions/{docId}": {
+      "schema": { "$ref": "#/entities/AppSuggestions" },
+      "description": "Stores user suggestions."
+    },
+    "/app_policies/{docId}": {
+      "schema": { "$ref": "#/entities/AppPolicies" },
+      "description": "Stores the application policies. Main doc is 'main'."
+    },
+    "/admin/{docId}": {
+      "schema": { "$ref": "#/entities/AdminSettings" },
+      "description": "Stores global admin configuration settings."
+    },
+    "/licenses/{licenseKey}": {
+      "schema": { "$ref": "#/entities/License" },
+      "description": "Stores all license keys and their states."
+    },
+    "/trials/{deviceId}": {
+      "schema": { "$ref": "#/entities/Trial" },
+      "description": "Tracks hardware IDs that have used the free trial."
+    },
+    "/customers/{customerId}": {
+      "schema": { "$ref": "#/entities/CustomerIdentity" },
+      "description": "User registration infos bound to licenses."
+    },
+    "/customers/{customerId}/history/{historyId}": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "timestamp": { "type": "string", "format": "date-time" },
+          "action": { "type": "string" },
+          "details": { "type": "string" },
+          "actor": { "type": "string" }
+        }
+      },
+      "description": "Log of actions performed on or by the customer."
+    }
+  }
+}

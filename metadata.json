@@ -1,0 +1,6 @@
+{
+  "name": "Techno Power Ultra POS",
+  "description": "نظام تكنو باور ألترا المتكامل لإدارة المبيعات والمخزون والحسابات. يتميز بواجهة عصرية، دعم الفروع المتعددة، التقسيط، الولاء، وإمكانية تخصيص الواجهة بالكامل.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

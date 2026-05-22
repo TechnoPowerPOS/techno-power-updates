@@ -1,0 +1,93 @@
+{
+  "name": "techno-power-pos",
+  "private": false,
+  "version": "1.15.2",
+  "type": "module",
+  "description": "نظام تكنو باور للمبيعات والمخزون",
+  "author": "Eng. Mohamed Shibl",
+  "main": "dist-electron/main.cjs",
+  "scripts": {
+    "dev": "tsx server.ts",
+    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --sourcemap --external:vite --external:esbuild --external:lightningcss --outfile=dist/server.cjs && esbuild electron/main.ts --bundle --platform=node --format=cjs --external:electron --outfile=dist-electron/main.cjs",
+    "start": "node dist/server.cjs",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "electron:build": "npm run build && electron-builder --win"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
+    "@google/genai": "^1.23.0",
+    "electron-updater": "^6.8.3",
+    "express": "^5.2.1",
+    "firebase": "^11.4.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
+    "lucide-react": "^0.545.0",
+    "motion": "^12.38.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^7.9.4",
+    "recharts": "^3.8.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@firebase/eslint-plugin-security-rules": "^0.0.2",
+    "@types/express": "^5.0.6",
+    "@types/html2canvas": "^0.5.35",
+    "@types/jspdf": "^1.3.3",
+    "@types/react": "^18.2.66",
+    "@types/react-dom": "^18.2.22",
+    "@typescript-eslint/eslint-plugin": "^8.59.1",
+    "@typescript-eslint/parser": "^8.59.1",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.19",
+    "electron": "^42.1.0",
+    "electron-builder": "^26.8.1",
+    "eslint": "^10.2.1",
+    "javascript-obfuscator": "^5.4.2",
+    "postcss": "^8.4.38",
+    "rollup-plugin-javascript-obfuscator": "^1.0.4",
+    "tailwindcss": "^3.4.3",
+    "terser": "^5.46.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.2.2",
+    "vite": "^5.2.0",
+    "vite-plugin-electron-renderer": "^0.14.6"
+  },
+  "build": {
+    "appId": "com.technopower.pos",
+    "productName": "TechnoPowerPOS",
+    "directories": {
+      "output": "dist_electron"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "TechnoPowerPOS",
+        "repo": "techno-power-updates"
+      }
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "نظام تكنو باور للمبيعات"
+    }
+  }
+}
