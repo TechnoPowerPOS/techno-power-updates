@@ -173,6 +173,15 @@ const SuppliersPage: React.FC = () => {
     return suppliers.filter(s => s.name.toLowerCase().includes(lower) || s.phone.includes(lower));
   }, [suppliers, searchTerm]);
 
+  const handleOpenAddModal = () => {
+    if (suppliers.length >= limits.maxSuppliers) {
+        addToast(`عذراً، لقد وصلت للحد الأقصى للموردين في خطتك الحالية (${limits.maxSuppliers} مورد). يرجى الترقية لباقة أعلى.`, 'error');
+        return;
+    }
+    setEditingSupplier(null);
+    setIsModalOpen(true);
+  };
+
   return (
     <div className="animate-fadeIn">
       <div className="flex justify-between items-center mb-6 border-slate-200 dark:border-slate-800 pb-4 border-b">
@@ -194,7 +203,7 @@ const SuppliersPage: React.FC = () => {
                     <Trash2 size={16} /> حذف المحدد ({selectedItems.length})
                 </button>
             )}
-            <Button onClick={() => { setEditingSupplier(null); setIsModalOpen(true); }} className="rounded-xl"><PlusCircle size={20} /> إضافة مورد</Button>
+            <Button onClick={handleOpenAddModal} className="rounded-xl"><PlusCircle size={20} /> إضافة مورد</Button>
         </div>
       </div>
       <Card className="p-0 shadow-premium border-none">

@@ -38,32 +38,10 @@ const normalizeFirestoreData = (data: any) => {
 };
 
 // Helper to update Firestore Treasury
-const syncTreasuryToFirestore = async (treasuryId: string, amount: number, isIncome: boolean) => {
-    if (!treasuryId) return;
-    const path = `treasuries/${treasuryId}`;
-    try {
-        const tRef = doc(firestoreDb, 'treasuries', treasuryId);
-        await setDoc(tRef, {
-            balance: increment(isIncome ? amount : -amount)
-        }, { merge: true });
-    } catch (e) {
-        handleFirestoreError(e, OperationType.WRITE, path);
-    }
-};
+const syncTreasuryToFirestore = async (treasuryId: string, amount: number, isIncome: boolean) => {};
 
 // Helper to log Firestore Transaction
-const syncTransactionToFirestore = async (transaction: any) => {
-    const path = `treasury_transactions/${transaction.id}`;
-    try {
-        const tRef = doc(collection(firestoreDb, 'treasury_transactions'), transaction.id);
-        await setDoc(tRef, {
-            ...transaction,
-            date: serverTimestamp()
-        });
-    } catch (e) {
-        handleFirestoreError(e, OperationType.WRITE, path);
-    }
-};
+const syncTransactionToFirestore = async (transaction: any) => {};
 
 // QA Auditor's Concurrency Lock
 let isDbLocked = false;
@@ -82,7 +60,7 @@ const withDbLock = async <T>(fn: () => Promise<T>): Promise<T> => {
 
 const getDb = async () => {
     const defaultDb = {
-        settings: { storeName: 'تكنو باور POS', vatRate: 15, currency: 'SAR', nextInvoiceNumber: 1000, invoiceNumberPrefix: 'INV-', navigationStyle: 'grid', homeGridItems: ['dashboard', 'pos', 'products', 'sales', 'purchases', 'customers', 'treasury', 'reports', 'partners'], pinnedPages: [], dashboardVisibleCards: ['revenue', 'transactions', 'receivables', 'stock'], visiblePages: PERMISSION_KEYS, loyaltySettings: { enabled: true, earningRate: 0.1, redemptionRate: 0.5, allowCreditPoints: false }, invoiceDesign: { template: 'modern', showLogo: true, accentColor: '#4f46e5' }, enableShiftManagement: true, storePhone: '', storeAddress: '', inventorySettings: { minAlertQty: 5, allowSaleWithoutStock: false }, notificationSettings: { enabled: true, debtAlert: true, stockAlert: true, backupReminder: true, systemEvents: true, paymentDelays: true } },
+        settings: { storeName: 'تكنو باور POS', posLayout: 'invoice', vatRate: 15, currency: 'SAR', nextInvoiceNumber: 1000, invoiceNumberPrefix: 'INV-', navigationStyle: 'grid', homeGridItems: ['dashboard', 'pos', 'products', 'sales', 'purchases', 'customers', 'treasury', 'reports', 'partners'], pinnedPages: [], dashboardVisibleCards: ['revenue', 'transactions', 'receivables', 'stock'], visiblePages: PERMISSION_KEYS, loyaltySettings: { enabled: true, earningRate: 0.1, redemptionRate: 0.5, allowCreditPoints: false }, invoiceDesign: { template: 'modern', showLogo: true, accentColor: '#4f46e5' }, enableShiftManagement: true, storePhone: '', storeAddress: '', inventorySettings: { minAlertQty: 5, allowSaleWithoutStock: false }, notificationSettings: { enabled: true, debtAlert: true, stockAlert: true, backupReminder: true, systemEvents: true, paymentDelays: true } },
         products: [],
         customers: [{ id: 'cust-1', name: 'عميل نقدي', phone: '000', debt: 0, points: 0, tier: 'Regular', creditLimit: 0 }],
         sales: [],
@@ -445,16 +423,6 @@ export const api = {
     },
     getTreasuries: async (includeBanks = false) => {
         const db = (await getDb());
-        try {
-            const snap = await getDocs(collection(firestoreDb, 'treasuries'));
-            const firestoreTreasuries = snap.docs.map(d => normalizeFirestoreData({ id: d.id, ...d.data() }));
-            
-            // Sync delete: remove any local treasuries that don't exist in firestore
-            db.treasuries = firestoreTreasuries;
-            await saveDb(db);
-        } catch (e) {
-            console.error("Sync getTreasuries failed", e);
-        }
 
         const trs = db.treasuries || [];
         if (includeBanks) return trs;
@@ -462,19 +430,7 @@ export const api = {
     },
     getFinancialAccounts: async () => (await getDb()).treasuries.filter((t: any) => t.type === 'bank'),
     getTreasuryTransactions: async (limitCount = 100) => {
-        const path = 'treasury_transactions';
-        try {
-            const q = query(collection(firestoreDb, path), orderBy('date', 'desc'), limit(limitCount));
-            const snap = await getDocs(q);
-            return snap.docs.map(d => normalizeFirestoreData({ id: d.id, ...d.data() }));
-        } catch (e) {
-            try {
-                handleFirestoreError(e, OperationType.LIST, path);
-            } catch (err) {
-                console.error("Sync getTreasuryTransactions failed", err);
-            }
-            return (await getDb()).transactions || [];
-        }
+        return (await getDb()).transactions || [];
     },
     getTransactions: async () => (await getDb()).transactions,
     getFinancialReport: async (start: string, end: string, productId?: string, customerId?: string): Promise<FinancialReport> => {
@@ -670,12 +626,6 @@ export const api = {
         const db = (await getDb());
         if (!t.id) t.id = `t-${Date.now()}`;
         
-        try {
-            await setDoc(doc(firestoreDb, 'treasuries', t.id), t);
-        } catch (e) {
-            console.error("Firebase save failed", e);
-        }
-
         const idx = db.treasuries.findIndex((item: any) => item.id === t.id);
         if (idx !== -1) db.treasuries[idx] = { ...db.treasuries[idx], ...t };
         else db.treasuries.push(t);
@@ -688,12 +638,6 @@ export const api = {
         const t = db.treasuries.find((item: any) => item.id === id);
         if (!t || t.isDefault || t.balance !== 0) return false;
         
-        try {
-            await deleteDoc(doc(firestoreDb, 'treasuries', id));
-        } catch (e) {
-            console.error("Firebase delete failed", e);
-        }
-
         db.treasuries = db.treasuries.filter((item: any) => item.id !== id);
         logActivity(db, 'حذف خزينة', `تم حذف الخزينة: ${t.name}`);
         await saveDb(db);
@@ -766,10 +710,7 @@ export const api = {
             s.debt = s.debt || 0; 
         }
         
-        // Sync to Firestore
-        try {
-            await setDoc(doc(firestoreDb, 'suppliers', s.id), s);
-        } catch (e) { console.error("Sync saveSupplier failed", e); }
+    // Sync disabled
 
         if (db.suppliers.find((i:any) => i.id === s.id)) {
             db.suppliers = db.suppliers.map((i: any) => i.id === s.id ? { ...i, ...s } : i); 
@@ -825,14 +766,6 @@ export const api = {
     },
     getPartners: async () => {
         const db = (await getDb());
-        try {
-            const snap = await getDocs(collection(firestoreDb, 'partners'));
-            const list = snap.docs.map(d => normalizeFirestoreData({ id: d.id, ...d.data() }));
-            if (list.length > 0) {
-                db.partners = list;
-                await saveDb(db);
-            }
-        } catch (e) { console.error("Sync getPartners failed", e); }
         return db.partners || [];
     },
     getPartnerTransactions: async (partnerId: string) => {
@@ -850,31 +783,21 @@ export const api = {
             p.status = 'Active';
         }
         
-        // Sync to Firestore
-        try {
-            await setDoc(doc(firestoreDb, 'partners', p.id), p);
-            
-            // Create a financial account for the partner if new
-            if (isNew) {
-                const partnerTreasury = {
-                    name: `حساب الشريك: ${p.name}`,
-                    balance: p.capitalInvested || 0,
-                    currency: 'SAR',
-                    isDefault: false,
-                    type: 'bank',
-                    partnerId: p.id,
-                    usageLimitations: ['purchases', 'expenses'],
-                    createdAt: serverTimestamp()
-                };
-                
-                // Add to firestore
-                const docRef = await addDoc(collection(firestoreDb, 'treasuries'), partnerTreasury);
-                
-                // Add to local DB mock
-                (partnerTreasury as any).id = docRef.id;
-                db.treasuries.push(partnerTreasury);
-            }
-        } catch (e) { console.error("Sync savePartner failed", e); }
+        // Create a financial account for the partner if new
+        if (isNew) {
+            const partnerTreasury = {
+                id: `prt-trs-${Date.now()}`,
+                name: `حساب الشريك: ${p.name}`,
+                balance: p.capitalInvested || 0,
+                currency: 'SAR',
+                isDefault: false,
+                type: 'bank',
+                partnerId: p.id,
+                usageLimitations: ['purchases', 'expenses'],
+                createdAt: new Date().toISOString()
+            };
+            db.treasuries.push(partnerTreasury);
+        }
 
         if (!isNew) {
             db.partners = db.partners.map((item: any) => item.id === p.id ? { ...item, ...p } : item);
@@ -916,7 +839,6 @@ export const api = {
     deletePartner: async (id: string) => {
         return withDbLock(async () => {
             const db = (await getDb());
-            try { await deleteDoc(doc(firestoreDb, 'partners', id)); } catch(e) { console.error(e); }
             db.partners = db.partners.filter((p: any) => p.id !== id);
             db.partnerTransactions = (db.partnerTransactions || []).filter((t: any) => t.partnerId !== id);
             logActivity(db, 'إدارة الشركاء', `تم حذف شريك بنجاح`);
@@ -1182,14 +1104,6 @@ export const api = {
     getUsers: async () => (await getDb()).users,
     getEmployees: async () => {
         const db = (await getDb());
-        try {
-            const snap = await getDocs(collection(firestoreDb, 'hr_personnel'));
-            const list = snap.docs.map(d => normalizeFirestoreData({ id: d.id, ...d.data() }));
-            if (list.length > 0) {
-                db.employees = list;
-                await saveDb(db);
-            }
-        } catch (e) { console.error("Sync getEmployees failed", e); }
         return db.employees || [];
     },
     saveEmployee: async (e: any) => {
@@ -1203,12 +1117,6 @@ export const api = {
                 db.employees.push(e);
             }
 
-            // Sync to Firestore
-            try {
-                const cleanEmp = JSON.parse(JSON.stringify(e)); // remove undefined
-                await setDoc(doc(firestoreDb, 'hr_personnel', e.id), cleanEmp);
-            } catch (err) { console.error("Sync saveEmployee failed", err); }
-
             logActivity(db, 'إدارة الموظفين', `تم حفظ بيانات الموظف: ${e.name}`);
             await saveDb(db);
             return e;
@@ -1217,7 +1125,7 @@ export const api = {
     deleteEmployee: async (id: string) => {
         return withDbLock(async () => {
             const db = (await getDb());
-            try { await deleteDoc(doc(firestoreDb, 'hr_personnel', id)); } catch(err) { console.error(err); }
+            // sync disabled
             db.employees = db.employees.filter((item: any) => item.id !== id);
             logActivity(db, 'إدارة الموظفين', `تم حذف موظف`);
             await saveDb(db);
@@ -1471,7 +1379,6 @@ export const api = {
     deleteInstallmentPlan: async (id: string) => {
         const db = (await getDb());
         if(!db.installments) return false;
-        try { await deleteDoc(doc(firestoreDb, 'installments', id)); } catch(e) {}
         db.installments = db.installments.filter((i:any) => i.id !== id);
         logActivity(db, 'الأقساط', `حذف خطة تقسيط`);
         await saveDb(db);
@@ -1487,7 +1394,6 @@ export const api = {
     },
     deleteSupplier: async (id: string) => {
         const db = (await getDb());
-        try { await deleteDoc(doc(firestoreDb, 'suppliers', id)); } catch(e) { console.error(e); }
         db.suppliers = db.suppliers.filter((s: any) => s.id !== id);
         db.supplierTransactions = (db.supplierTransactions || []).filter((t: any) => t.supplierId !== id);
         logActivity(db, 'إدارة الموردين', `تم حذف مورد`);
@@ -1547,7 +1453,6 @@ export const api = {
             else treasury.balance += tr.amount;
         }
 
-        try { await deleteDoc(doc(firestoreDb, 'treasury_transactions', id)); } catch(e) {}
         db.transactions = db.transactions.filter((t: any) => t.id !== id);
         logActivity(db, 'حذف حركة خزينة', `تم حذف حركة مالية واستعادة الرصيد`);
         await saveDb(db);
@@ -1555,18 +1460,7 @@ export const api = {
     },
     getSettlements: async () => {
         const db = (await getDb());
-        try {
-            const snap = await getDocs(collection(firestoreDb, 'financial_settlements'));
-            const list = snap.docs.map(d => normalizeFirestoreData({ id: d.id, ...d.data() }));
-            if (list.length > 0) {
-                db.settlements = list;
-                await saveDb(db);
-            }
-            return list;
-        } catch (e) {
-            console.error("Sync getSettlements failed", e);
-            return db.settlements || [];
-        }
+        return db.settlements || [];
     },
     saveSettlement: async (s: any) => {
         return withDbLock(async () => {
@@ -1578,10 +1472,7 @@ export const api = {
                 if (!db.settlements) db.settlements = [];
                 db.settlements.unshift(s);
                 
-                // Sync to Firestore
-                try {
-                    await setDoc(doc(firestoreDb, 'financial_settlements', s.id), s);
-                } catch (e) { console.error("Sync saveSettlement failed", e); }
+                // Sync disabled
 
                 // Apply to beneficiary
                 if (s.beneficiaryType === 'Partner') {
@@ -1690,7 +1581,6 @@ export const api = {
                     }
                 }
                 
-                try { await deleteDoc(doc(firestoreDb, 'financial_settlements', id)); } catch(e) {}
                 db.settlements = db.settlements.filter((item: any) => item.id !== id);
                 logActivity(db, 'إلغاء تسوية', `إلغاء التسوية: ${id}`);
                 await saveDb(db);

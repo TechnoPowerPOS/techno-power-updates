@@ -345,9 +345,6 @@ const AdminLicensePage: React.FC = () => {
                             onChange={e => setNewType(e.target.value as any)}
                             className="w-full bg-white border border-slate-200 rounded-2xl px-4 py-3 font-black shadow-sm focus:ring-2 focus:ring-indigo-500 outline-none h-[54px]"
                         >
-                            <option value="Basic">Basic - شهر (مبتدئ)</option>
-                            <option value="Pro">Pro - شهر (متوسط)</option>
-                            <option value="Business">Business - شهر (احترافي)</option>
                             <option value="Basic Year">Basic Year - سنوي (مبتدئ)</option>
                             <option value="Pro Year">Pro Year - سنوي (متوسط)</option>
                             <option value="Business Year">Business Year - سنوي (احترافي)</option>
@@ -453,13 +450,13 @@ const AdminLicensePage: React.FC = () => {
                             onChange={e => setFilterPlan(e.target.value)}
                         >
                             <option value="all">كل الخطط</option>
-                            <option value="Basic">Basic (شهري)</option>
-                            <option value="Pro">Pro (شهري)</option>
-                            <option value="Business">Business (شهري)</option>
                             <option value="Basic Year">Basic (سنوي)</option>
                             <option value="Pro Year">Pro (سنوي)</option>
                             <option value="Business Year">Business (سنوي)</option>
-                            <option value="Monthly">شهري (قديم)</option>
+                            <option value="Basic">Basic (قديم - شهري)</option>
+                            <option value="Pro">Pro (قديم - شهري)</option>
+                            <option value="Business">Business (قديم - شهري)</option>
+                            <option value="Monthly">شهري (قديم - أقدم)</option>
                             <option value="Semiannual">نصف سنوية (قديم)</option>
                             <option value="Yearly">سنوية (قديم)</option>
                             <option value="Lifetime">مدى الحياة</option>

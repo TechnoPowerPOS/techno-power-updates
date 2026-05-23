@@ -10,9 +10,6 @@ export default function AdminPricingPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [pricing, setPricing] = useState({
-        basicMonthly: { price: '', oldPrice: '', discount: '' },
-        proMonthly: { price: '', oldPrice: '', discount: '' },
-        businessMonthly: { price: '', oldPrice: '', discount: '' },
         basicYearly: { price: '', oldPrice: '', discount: '' },
         proYearly: { price: '', oldPrice: '', discount: '' },
         businessYearly: { price: '', oldPrice: '', discount: '' }
@@ -51,9 +48,6 @@ export default function AdminPricingPage() {
     if (loading) return <div className="p-10 text-center text-slate-500">جاري التحميل...</div>;
 
     const plans = [
-        { id: 'basicMonthly', title: 'Basic (شهري)', color: 'text-zinc-500', bg: 'bg-zinc-50 dark:bg-zinc-900/20' },
-        { id: 'proMonthly', title: 'Pro (شهري)', color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20' },
-        { id: 'businessMonthly', title: 'Business (شهري)', color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/20' },
         { id: 'basicYearly', title: 'Basic (سنوي)', color: 'text-zinc-600', bg: 'bg-zinc-100 dark:bg-zinc-900/40' },
         { id: 'proYearly', title: 'Pro (سنوي)', color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/40' },
         { id: 'businessYearly', title: 'Business (سنوي)', color: 'text-amber-700', bg: 'bg-amber-100 dark:bg-amber-900/40' }

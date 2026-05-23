@@ -66,7 +66,9 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ layoutType = 'modern' }) =>
         if (hiddenModules.includes(link.id)) return false;
         
         if (link.id === 'sales_crm') {
-             if (planLimits.maxCustomers <= 50 && !planLimits.hasPartners) return false;
+             // Let the category be visible, but filter its children based on permissions/limits
+             // For example, CRM (the whole management interface) could be hidden if maxCustomers <= 50, but we filter that below in child loop.
+             return true;
         }
 
         // Then filter by plan limits

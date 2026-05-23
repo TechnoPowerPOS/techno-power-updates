@@ -8,6 +8,7 @@ import { handleFirestoreError, OperationType } from '../services/firestoreErrorH
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { useSettings } from '../hooks/useSettings';
+import { useChangelog } from '../hooks/useChangelog';
 import { api } from '../services/mockApi';
 import type { StoreSettings, User, Role } from '../types';
 import { 
@@ -82,6 +83,7 @@ const SettingsPage: React.FC = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const { settings, updateSettings } = useSettings();
+    const { changelogData } = useChangelog();
     const { addToast } = useToasts();
     const { licenseInfo, deviceId } = useLicense();
     const { identity, update: updateIdentity } = useUserIdentity();
@@ -489,6 +491,33 @@ const SettingsPage: React.FC = () => {
                             </div>
                         </div>
                     </div>
+
+                    <div className="p-6 bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-900/20 dark:to-slate-900 rounded-[2rem] border border-indigo-100 dark:border-indigo-800/30 shadow-[0_4px_24px_rgba(0,0,0,0.02)] mt-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <p className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest ps-2">آخر تحديثات النظام</p>
+                            <Zap size={14} className="text-indigo-500 animate-pulse" />
+                        </div>
+                        <div className="space-y-3">
+                            {changelogData && changelogData.length > 0 ? (
+                                <div className="bg-white dark:bg-slate-800/80 p-4 rounded-2xl shadow-sm border border-indigo-50/50 dark:border-slate-700/50 cursor-pointer hover:border-indigo-200 transition-colors" onClick={() => navigate('/system-updates')}>
+                                    <div className="flex justify-between items-center mb-2">
+                                        <span className="inline-block px-2 py-1 bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold rounded-md">
+                                            الإصدار {changelogData[0].version}
+                                        </span>
+                                        <span className="text-[10px] text-slate-400 font-bold">{new Date(changelogData[0].date).toLocaleDateString('ar-EG')}</span>
+                                    </div>
+                                    <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-1">
+                                        {changelogData[0].title}
+                                    </h4>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-2">
+                                        {changelogData[0].changes[0]}...
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="text-center text-xs text-slate-400 p-4">لا توجد تحديثات حالياً</div>
+                            )}
+                        </div>
+                    </div>
                 </nav>
 
                 <div className="lg:col-span-3 space-y-8">
@@ -752,18 +781,18 @@ const SettingsPage: React.FC = () => {
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 <div 
                                                     onClick={() => setLocalSettings({...localSettings, posLayout: 'grid'})}
-                                                    className={`p-6 rounded-3xl border-2 cursor-pointer transition-all ${(!localSettings.posLayout || localSettings.posLayout === 'grid') ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/10 shadow-lg shadow-indigo-500/10' : 'border-slate-200 dark:border-slate-700 hover:border-indigo-300'}`}
+                                                    className={`p-6 rounded-3xl border-2 cursor-pointer transition-all ${localSettings.posLayout === 'grid' ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/10 shadow-lg shadow-indigo-500/10' : 'border-slate-200 dark:border-slate-700 hover:border-indigo-300'}`}
                                                 >
                                                     <div className="w-16 h-16 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-600 mb-4 mx-auto"><LayoutGrid size={32}/></div>
-                                                    <h5 className="font-black text-center text-slate-800 dark:text-white">تصميم الكاشير (الافتراضي)</h5>
+                                                    <h5 className="font-black text-center text-slate-800 dark:text-white">تصميم الكاشير للأسواق (Grid)</h5>
                                                     <p className="text-[10px] text-center text-slate-500 mt-2">شكل مبسط، سريع للكاشير والسوبرماركت.</p>
                                                 </div>
                                                 <div 
                                                     onClick={() => setLocalSettings({...localSettings, posLayout: 'invoice'})}
-                                                    className={`p-6 rounded-3xl border-2 cursor-pointer transition-all ${localSettings.posLayout === 'invoice' ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/10 shadow-lg shadow-indigo-500/10' : 'border-slate-200 dark:border-slate-700 hover:border-indigo-300'}`}
+                                                    className={`p-6 rounded-3xl border-2 cursor-pointer transition-all ${(!localSettings.posLayout || localSettings.posLayout === 'invoice') ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/10 shadow-lg shadow-indigo-500/10' : 'border-slate-200 dark:border-slate-700 hover:border-indigo-300'}`}
                                                 >
                                                     <div className="w-16 h-16 rounded-2xl bg-emerald-100 dark:bg-slate-800 flex items-center justify-center text-emerald-600 mb-4 mx-auto"><FileText size={32}/></div>
-                                                    <h5 className="font-black text-center text-slate-800 dark:text-white">جدول فاتورة المبيعات المنظم</h5>
+                                                    <h5 className="font-black text-center text-slate-800 dark:text-white">جدول فاتورة المبيعات المنظم (الافتراضي)</h5>
                                                     <p className="text-[10px] text-center text-slate-500 mt-2">تصميم متقدم لشركات الجملة والأنشطة التجارية الكبيرة يعرض كجدول.</p>
                                                 </div>
                                             </div>

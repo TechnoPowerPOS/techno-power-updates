@@ -102,6 +102,7 @@ export const activateTrial = async (): Promise<{ success: boolean; message: stri
         });
 
         localStorage.setItem(getBranchKey(STORAGE_KEY), 'TRIAL-PLAN-' + deviceId);
+        secureStorage.setItem(getBranchKey(STORAGE_KEY), 'TRIAL-PLAN-' + deviceId);
         secureStorage.setItem(getBranchKey(TYPE_KEY), 'Trial'); // Make sure we also update TYPE_KEY securely
         return { success: true, message: `تم تفعيل التجربة المجانية لمدة ${trialDays} أيام بنجاح.` };
     } catch (e) {
@@ -226,7 +227,7 @@ const attemptAutoRepair = async (rawKey: string, deviceId: string, storageKey: s
         }
         return 'tampered';
     } catch (e) {
-        return 'tampered';
+        return 'network_error';
     }
 };
 
@@ -245,8 +246,15 @@ export const checkLicenseStatus = async (): Promise<{ active: boolean; status: s
                 attemptAutoRepair(rawKey, deviceId, getBranchKey(STORAGE_KEY)),
                 new Promise((_, reject) => setTimeout(() => reject(new Error('Auto Repair Timeout')), 8000))
             ]) as any;
-            if (repairResult === 'tampered' || repairResult instanceof Error) return { active: false, status: 'tampered' };
-            key = repairResult;
+            
+            if (repairResult === 'network_error' || repairResult instanceof Error) {
+                 // Temporary fail-open for network errors so we don't lock offline users
+                 key = rawKey; 
+            } else if (repairResult === 'tampered') {
+                 return { active: false, status: 'tampered' };
+            } else {
+                 key = repairResult;
+            }
         }
     }
 
@@ -266,8 +274,13 @@ export const checkLicenseStatus = async (): Promise<{ active: boolean; status: s
                 attemptAutoRepair(rawMainKey, deviceId, STORAGE_KEY),
                 new Promise((_, reject) => setTimeout(() => reject(new Error('Auto Repair Timeout')), 8000))
             ]) as any;
-            if (repairResult === 'tampered' || repairResult instanceof Error) return { active: false, status: 'tampered' };
-            key = repairResult;
+            if (repairResult === 'network_error' || repairResult instanceof Error) {
+                key = rawMainKey;
+            } else if (repairResult === 'tampered') {
+                return { active: false, status: 'tampered' };
+            } else {
+                key = repairResult;
+            }
         }
     }
 

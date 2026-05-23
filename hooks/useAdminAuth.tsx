@@ -3,7 +3,8 @@ import { adminToolService } from '../services/adminToolService';
 import { secureStorage } from '../utils/secureStorage';
 
 import { signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
-import { auth } from '../services/firebase';
+import { auth, db } from '../services/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 
 type AdminAuthStatus = 'success' | 'failed' | 'locked' | 'tamper_detected';
 
@@ -79,8 +80,6 @@ export const AdminAuthProvider: React.FC<{ children: ReactNode }> = ({ children 
         
         // Ensure admin document exists for rules to work
         try {
-          const { db } = await import('../services/firebase');
-          const { doc, setDoc } = await import('firebase/firestore');
           await setDoc(doc(db, 'admins', userCredential.user.uid), {
             email: userCredential.user.email,
             role: 'super_admin',

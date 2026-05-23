@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle, Crown, ShieldCheck, Zap, Star, Key, Heart, Info, MessageCircle, Smartphone, Copy, Check, Sparkles, Building2, Store, Layers, Mail, Tag, X, ArrowRight } from 'lucide-react';
+import { CheckCircle, Crown, ShieldCheck, Zap, Star, Key, Heart, Info, MessageCircle, Smartphone, Copy, Check, Sparkles, Building2, Store, Layers, Mail, Tag, X, ArrowRight, Globe } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Header from '../components/layout/Header';
 import Card from '../components/ui/Card';
@@ -12,6 +12,8 @@ import { useToasts } from '../hooks/useToasts';
 import LicenseActivationModal from '../components/license/LicenseActivationModal';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import { getPlanLimits } from '../utils/planPermissions';
+import { db } from '../services/firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 const PricingCard: React.FC<{
     title: string, 
@@ -30,11 +32,10 @@ const PricingCard: React.FC<{
     variant?: 'default' | 'glow' | 'solid',
     isCurrentPlan?: boolean,
     delay?: number,
-    currency?: 'USD' | 'EGP',
     licenseType?: string
-}> = ({ title, price, oldPrice, discount, period, features, limits, popular, icon, color, description, buttonText = "اشترك الآن", onSubscribe, variant = 'default', isCurrentPlan = false, delay = 0, currency = 'USD', licenseType }) => {
+}> = ({ title, price, oldPrice, discount, period, features, limits, popular, icon, color, description, buttonText = "اشترك الآن", onSubscribe, variant = 'default', isCurrentPlan = false, delay = 0, licenseType }) => {
     
-    const currencySymbol = currency === 'USD' ? '$' : 'ج.م';
+    const currencySymbol = 'ج.م';
     // Style configurations based on variant
     let containerClass = popular 
         ? 'border-indigo-500/50 shadow-[0_32px_64px_-16px_rgba(79,70,229,0.2)] bg-white dark:bg-slate-900 border-2 relative overflow-hidden flex flex-col h-full rounded-[2.5rem] transition-all duration-500 ring-4 ring-indigo-500/5'
@@ -86,7 +87,7 @@ const PricingCard: React.FC<{
                 
                     <div className="flex flex-col mb-10 pt-6 border-t border-slate-100 dark:border-slate-800">
                         <div className="h-6 mb-1.5 flex items-center gap-3">
-                            {oldPrice && <span className="text-slate-400 text-sm line-through font-bold decoration-slate-300 dark:decoration-slate-600 opacity-70">{currency === 'USD' ? oldPrice : toArabicIndic(oldPrice)} {currencySymbol}</span>}
+                            {oldPrice && <span className="text-slate-400 text-sm line-through font-bold decoration-slate-300 dark:decoration-slate-600 opacity-70">{toArabicIndic(oldPrice)} {currencySymbol}</span>}
                             {discount && discount !== "0%" && (
                                 <span className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-black px-2 py-0.5 rounded-md">
                                     وفر {discount}
@@ -95,7 +96,7 @@ const PricingCard: React.FC<{
                         </div>
                         <div className="flex items-baseline gap-2">
                             <span className={`font-black tracking-tighter transition-all duration-500 ${price === '0' ? 'text-5xl' : 'text-6xl'} ${popular ? 'text-transparent bg-clip-text bg-gradient-to-br from-indigo-600 via-blue-600 to-indigo-700 dark:from-indigo-400 dark:via-blue-400 dark:to-indigo-500' : 'text-slate-800 dark:text-white'}`}>
-                                {price === '0' ? 'مجاناً' : (currency === 'USD' ? price : toArabicIndic(price))}
+                                {price === '0' ? 'مجاناً' : toArabicIndic(price)}
                             </span>
                             {price !== '0' && <span className="text-slate-500 font-bold text-base bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-xl">{currencySymbol} / {period}</span>}
                         </div>
@@ -170,27 +171,12 @@ const PricingPage: React.FC<{ hideHeader?: boolean }> = ({ hideHeader }) => {
   const [isActivatingTrial, setIsActivatingTrial] = useState(false);
   const { licenseInfo } = useLicense();
   
-  const [isYearly, setIsYearly] = useState(true);
-  const [currency, setCurrency] = useState<'EGP' | 'USD'>('USD');
-
   // Promo Code State
   const [promoCode, setPromoCode] = useState('');
   const [activeDiscount, setActiveDiscount] = useState<{type: 'percentage' | 'fixed', value: number, code: string} | null>(null);
   const [isValidatingPromo, setIsValidatingPromo] = useState(false);
 
-  const [usdPricing, setUsdPricing] = useState({
-      basicMonthly: { price: "10", oldPrice: "15", discount: "0%", currency: 'USD' },
-      proMonthly: { price: "25", oldPrice: "30", discount: "0%", currency: 'USD' },
-      businessMonthly: { price: "40", oldPrice: "50", discount: "0%", currency: 'USD' },
-      basicYearly: { price: "100", oldPrice: "120", discount: "15%", currency: 'USD' },
-      proYearly: { price: "240", oldPrice: "300", discount: "20%", currency: 'USD' },
-      businessYearly: { price: "400", oldPrice: "500", discount: "20%", currency: 'USD' }
-  });
-
   const [egpPricing, setEgpPricing] = useState({
-      basicMonthly: { price: "460", oldPrice: "500", discount: "0%", currency: 'EGP' },
-      proMonthly: { price: "799", oldPrice: "900", discount: "0%", currency: 'EGP' },
-      businessMonthly: { price: "1840", oldPrice: "1840", discount: "0%", currency: 'EGP' },
       basicYearly: { price: "4965", oldPrice: "5520", discount: "10%", currency: 'EGP' },
       proYearly: { price: "8160", oldPrice: "9588", discount: "15%", currency: 'EGP' },
       businessYearly: { price: "17665", oldPrice: "22080", discount: "20%", currency: 'EGP' }
@@ -198,21 +184,13 @@ const PricingPage: React.FC<{ hideHeader?: boolean }> = ({ hideHeader }) => {
 
   const [dynamicFeatures, setDynamicFeatures] = useState<Record<string, string[]> | null>(null);
 
-  const currentPricing = (() => {
-    // If currency is USD, we prefer the local requests values (9, 17, 34) 
-    // unless Firestore explicitly has USD data.
-    if (currency === 'USD') return usdPricing;
-    return egpPricing;
-  })();
+  const currentPricing = egpPricing;
 
   useEffect(() => {
     let unsubscribeMarketing: () => void;
     let unsubscribePricing: () => void;
     
     const setupRealtime = async () => {
-        const { db } = await import('../services/firebase');
-        const { doc, onSnapshot } = await import('firebase/firestore');
-
         // Sub to marketing content
         unsubscribeMarketing = onSnapshot(doc(db, 'admin', 'plan_marketing'), (snapshot) => {
             if (snapshot.exists()) {
@@ -226,12 +204,7 @@ const PricingPage: React.FC<{ hideHeader?: boolean }> = ({ hideHeader }) => {
         unsubscribePricing = onSnapshot(doc(db, 'admin', 'pricing'), (snapshot) => {
             if (snapshot.exists()) {
                 const data = snapshot.data();
-                // If the data from Firestore is USD, update usdPricing, otherwise update egpPricing
-                if (data.basicMonthly?.currency === 'USD') {
-                    setUsdPricing(prev => ({ ...prev, ...data }));
-                } else {
-                    setEgpPricing(prev => ({ ...prev, ...data }));
-                }
+                setEgpPricing(prev => ({ ...prev, ...data }));
             }
         }, (err) => {
             console.error('onSnapshot pricing error:', err);
@@ -374,54 +347,74 @@ const PricingPage: React.FC<{ hideHeader?: boolean }> = ({ hideHeader }) => {
     }
     
     const features: string[] = [];
+
+    // Feature 1: Core limits (Users, Branches, Warehouses, Treasuries)
+    const userLimit = limits.maxUsers > 999 ? 'غير محدود' : limits.maxUsers;
+    const branchLimit = limits.maxBranches > 999 ? 'غير محدودة' : limits.maxBranches;
+    const warehouseLimit = limits.maxWarehouses > 999 ? 'غير محدودة' : limits.maxWarehouses;
+    const treasuryLimit = limits.maxTreasuries > 999 ? 'غير محدودة' : limits.maxTreasuries;
+    features.push(`الأساسيات: ${userLimit} مستخدم - ${branchLimit} فرع - ${warehouseLimit} مخزن - ${treasuryLimit} خزينة`);
+
+    // Feature 2: Records limits (Products, Customers, Suppliers, Employees)
+    const productLimit = limits.maxProducts > 9999 ? 'غير محدود' : limits.maxProducts;
+    const customerLimit = limits.maxCustomers > 9999 ? 'غير محدود' : limits.maxCustomers;
+    const supplierLimit = limits.maxSuppliers > 999 ? 'غير محدود' : limits.maxSuppliers;
+    const employeeLimit = limits.maxEmployees > 999 ? 'غير محدود' : limits.maxEmployees;
+    features.push(`السجلات الجوهرية: ${productLimit} منتج - ${customerLimit} عميل - ${supplierLimit} مورد - ${employeeLimit} موظف`);
+
+    // Feature 3: Operation Limits (Sales & Operations)
+    const dailySaleLimit = limits.maxDailySales > 9999 ? 'غير محدودة' : `${limits.maxDailySales} يومياً`;
+    const yearlySaleLimit = limits.maxYearlySales > 99999 ? 'غير محدودة' : `${limits.maxYearlySales} سنوياً`;
+    const treasuryTransLimit = limits.maxDailyTreasuryTransactions > 9999 ? 'غير محدودة' : `${limits.maxDailyTreasuryTransactions} حركة يومية`;
+    features.push(`حجم المبيعات: ${dailySaleLimit} / ${yearlySaleLimit}`);
     
-    if (type.includes('Free')) {
-        features.push('المستخدمون: 1 مستخدم');
-        features.push('الفروع: 1 فرع');
-        features.push('المخازن: 1 مخزن');
-        features.push('الخزينة: 1 خزينة');
-        features.push('المنتجات: 30 منتج');
-        features.push('الموردون: 1 مورد');
-        features.push('الموظفون: 1 موظف');
-        features.push('المبيعات: 5 مبيعات يومية / 800 مبيعات سنوية');
-        features.push('حركات الخزينة: 2 حركة خزينة يومية');
-    } else if (type.includes('Basic')) {
-        features.push('المستخدمون: 1 مستخدم');
-        features.push('المخازن: 1 مخزن');
-        features.push('الخزينة: 1 خزينة');
-        features.push('المنتجات: 120 منتج');
-        features.push('الموردون: 3 موردين');
-        features.push('الموظفون: 2 موظفين');
-        features.push('المبيعات: عدد مبيعات غير محدود يومياً / 3500 مبيعات سنوية');
-        features.push('إدارة المخزون والعمليات: التحويل الداخلي للمخزون - سجل النشاط - تصدير واستيراد إكسيل - قراءة الباركود');
-        features.push('المحاسبة والمالية: محاسبة متقدمة - عملاء آجل - نظام التقسيط');
-        features.push('التقارير والأداء: التقارير المتقدمة - أداء الموظفين');
-        features.push('ميزات إضافية: ميزات الشركات - تصميم الفواتير والإشعارات');
-    } else if (type.includes('Pro')) {
-        features.push('المستخدمون: 5 مستخدمين');
-        features.push('الفروع: 1 فرع');
-        features.push('المخازن: 5 مخازن');
-        features.push('الخزينة: 3 خزائن');
-        features.push('المنتجات: عدد غير محدود من المنتجات');
-        features.push('الموردون: 25 مورد');
-        features.push('الموظفون: 10 موظفين');
-        features.push('المبيعات وحركات الخزينة: عدد غير محدود من المبيعات اليومية والسنوية - عدد غير محدود من حركات الخزينة');
-        features.push('شؤون الموظفين: شؤون الموظفين - إدارة المرتبات - تقييم أداء الموظفين - عمولات الموظفين');
-        features.push('المحاسبة والمالية: إدارة الموازنات والتقديرات المالية - المحاسبة المتقدمة - عملاء آجل - نظام التقسيط');
-        features.push('المخزون والعمليات: جرد المخزون - التحويل الداخلي للمخزون - سجل النشاط - تصدير واستيراد إكسيل - قراءة الباركود');
-        features.push('الذكاء الاصطناعي والتقارير: الذكاء الاصطناعي - التقارير المتقدمة');
-        features.push('ميزات إضافية: ميزات الشركات - إدارة الشحن - برنامج الولاء - إضافة شعار العمل - تصميم الفاتورة والإشعارات - النسخ الاحتياطي');
-    } else if (type.includes('Business')) {
-        features.push('الميزات اللامحدودة: عدد غير محدود من (المستخدمين - الفروع - المخازن - الخزائن - المنتجات - الموردين - الموظفين - المبيعات اليومية والسنوية - حركات الخزينة)');
-        features.push('شؤون الموظفين المتقدمة: شؤون الموظفين - إدارة المرتبات والأجور - إدارة الإجازات والطلبات - أداء الموظفين - عمولات المناديب');
-        features.push('التصنيع والإنتاج: أوامر التشغيل والعمل - إدارة التصنيع والإنتاج');
-        features.push('المحاسبة والمالية: إدارة الموازنات والتقديرات المالية - المحاسبة المتقدمة - عملاء آجل - نظام التقسيط');
-        features.push('الربط والتقنية: دعم API - الربط بمتجر إلكتروني - إدارة واتساب');
-        features.push('المخزون والعمليات: جرد المخزون - التحويل الداخلي - سجل النشاط - تصدير واستيراد إكسيل - قراءة الباركود');
-        features.push('الذكاء الاصطناعي والتقارير: الذكاء الاصطناعي - التقارير المتقدمة');
-        features.push('ميزات الشركات والشركاء: ميزات الشركات - نظام الشركاء - إدارة الشحن - برنامج الولاء - رضا العملاء');
-        features.push('الهدايا واللمسات الاحترافية: إيميل شركات من جوجل (هدية) - إضافة شعار العمل - تصميم الفواتير والإشعارات - النسخ الاحتياطي');
-    } else if (type.includes('Trial')) {
+    // Feature 4: Base Management
+    let inventoryFeatures = [];
+    if (limits.hasStockTransfer) inventoryFeatures.push('التحويل الداخلي');
+    if (limits.hasInventoryAudit) inventoryFeatures.push('جرد المخزون');
+    if (limits.hasExcelImport) inventoryFeatures.push('استيراد وتصدير إكسيل');
+    if (limits.hasBarcode) inventoryFeatures.push('قراءة الباركود');
+    if (limits.hasActivityLogs) inventoryFeatures.push('سجل النشاط');
+    if (inventoryFeatures.length > 0) features.push(`المخزون والعمليات: ${inventoryFeatures.join(' - ')}`);
+
+    // Feature 5: Accounting
+    let accFeatures = [];
+    if (limits.hasAccounts) accFeatures.push('محاسبة متقدمة');
+    if (limits.hasCreditCustomer) accFeatures.push('عملاء آجل');
+    if (limits.hasInstallments) accFeatures.push('نظام التقسيط');
+    if (limits.hasAccountingBudget) accFeatures.push('الموازنات والتقديرات');
+    if (accFeatures.length > 0) features.push(`المحاسبة والمالية: ${accFeatures.join(' - ')}`);
+
+    // Feature 6: Employees & HR
+    let hrFeatures = [];
+    if (limits.hasHR) hrFeatures.push('شؤون الموظفين');
+    if (limits.hasHRSalaries) hrFeatures.push('المرتبات والأجور');
+    if (limits.hasEmployeePerformance) hrFeatures.push('تقييم الأداء');
+    if (limits.hasCommissions) hrFeatures.push('عمولات الموظفين');
+    if (hrFeatures.length > 0) features.push(`شؤون الموظفين: ${hrFeatures.join(' - ')}`);
+
+    // Feature 7: AI & Reports
+    let reportFeatures = [];
+    if (limits.hasAI) reportFeatures.push('الذكاء الاصطناعي');
+    if (limits.hasAdvancedReports) reportFeatures.push('التقارير المتقدمة');
+    if (reportFeatures.length > 0) features.push(`التقارير: ${reportFeatures.join(' - ')}`);
+
+    // Feature 8: Advanced Modules
+    let extraFeatures = [];
+    if (limits.hasPartners) extraFeatures.push('نظام الشركاء');
+    if (limits.hasShipping) extraFeatures.push('إدارة الشحن');
+    if (limits.hasLoyalty) extraFeatures.push('برنامج الولاء');
+    if (limits.hasCustomerSatisfaction) extraFeatures.push('رضا العملاء');
+    if (limits.hasAPI) extraFeatures.push('دعم API');
+    if (limits.hasEcommerceAPI) extraFeatures.push('الربط بمتجر إلكتروني');
+    if (limits.hasWhatsApp) extraFeatures.push('إدارة واتساب');
+    if (extraFeatures.length > 0) features.push(`ميزات متقدمة: ${extraFeatures.join(' - ')}`);
+
+    if (limits.hasLogoUpload || limits.hasBackup || limits.hasCustomUi) {
+         features.push('إضافات وتخصيص: تصميم الفواتير والشعار, והنسخ الاحتياطي السحابي');
+    }
+
+    if (type.includes('Trial')) {
         features.push('المميزات: مطابقة تماماً لـ خطة الأعمال بجميع ميزاتها وصلاحياتها.');
     }
 
@@ -464,7 +457,7 @@ const PricingPage: React.FC<{ hideHeader?: boolean }> = ({ hideHeader }) => {
           </p>
 
           {/* Promo Code Input & Branch Note */}
-          <div className="max-w-2xl mx-auto mb-10 flex flex-col md:flex-row items-stretch gap-4 justify-center">
+          <div className="max-w-2xl mx-auto mb-4 flex flex-col md:flex-row items-stretch gap-4 justify-center">
               <div className="flex-1 p-3 px-4 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/30 rounded-2xl flex items-center justify-center gap-3 shadow-sm min-h-[56px]">
                   <Store size={18} className="text-indigo-600" />
                   <p className="text-sm font-black text-indigo-800 dark:text-indigo-300">
@@ -508,96 +501,74 @@ const PricingPage: React.FC<{ hideHeader?: boolean }> = ({ hideHeader }) => {
               </div>
           </div>
 
-          {/* Pricing Toggle & Currency Toggle */}
-          <div className="flex flex-col items-center justify-center mt-6 gap-6">
-              <div className="bg-white/80 backdrop-blur-md dark:bg-slate-900/80 border border-slate-200/50 dark:border-slate-800 p-2 rounded-full inline-flex font-black text-sm shadow-xl shadow-slate-200/20 dark:shadow-none relative">
-                  <div className={`absolute top-2 bottom-2 w-[160px] bg-slate-900 dark:bg-white rounded-full transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${isYearly ? 'translate-x-0' : '-translate-x-[160px]'}`} />
-                  
-                  <button 
-                      onClick={() => setIsYearly(true)} 
-                      className={`relative w-[160px] py-3.5 rounded-full transition-colors z-10 flex flex-col items-center justify-center ${isYearly ? 'text-white dark:text-slate-900' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
-                  >
-                      <span>الاشتراك السنوي</span>
-                  </button>
-                  <button 
-                      onClick={() => setIsYearly(false)} 
-                      className={`relative w-[160px] py-3.5 rounded-full transition-colors z-10 flex flex-col items-center justify-center ${!isYearly ? 'text-white dark:text-slate-900' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
-                  >
-                      <span>الاشتراك الشهري</span>
-                  </button>
-
-                  <div className="absolute -top-4 -right-4 rotate-12 z-20 pointer-events-none animate-bounce">
-                      <span className="bg-gradient-to-br from-rose-400 to-rose-600 text-white text-[11px] font-black px-3 py-1 rounded-lg shadow-lg shadow-rose-500/30 border border-rose-400/50">وفر حتى 20% 🎉</span>
+          {/* Online Version Note */}
+          <div className="max-w-2xl mx-auto mb-10 flex flex-col md:flex-row items-stretch gap-4 justify-center">
+              <div className="flex-1 p-4 px-6 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 rounded-2xl flex items-center gap-4 shadow-sm min-h-[56px]">
+                  <div className="bg-emerald-100 dark:bg-emerald-800/50 p-2 rounded-xl">
+                    <Globe size={24} className="text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-right text-emerald-800 dark:text-emerald-300 mb-0.5">
+                        نسخة أونلاين سحابية متوفرة
+                    </h4>
+                    <p className="text-xs font-bold text-right text-emerald-600 dark:text-emerald-400/80">
+                        لجعل النظام متاحاً من أي جهاز وفي أي مكان، يرجى التواصل مع دعم البرنامج لطلب تفعيل هذه الإضافة لنسختك.
+                    </p>
                   </div>
               </div>
-
-              {/* Currency Toggle */}
-              <div className="flex items-center gap-4 bg-slate-100 dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800">
-                  <button 
-                      onClick={() => setCurrency('USD')}
-                      className={`px-6 py-2.5 rounded-xl font-black text-xs transition-all ${currency === 'USD' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-800'}`}
-                  >
-                      USD ($)
-                  </button>
-                  <button 
-                      onClick={() => setCurrency('EGP')}
-                      className={`px-6 py-2.5 rounded-xl font-black text-xs transition-all ${currency === 'EGP' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-800'}`}
-                  >
-                      EGP (LE)
-                  </button>
-              </div>
           </div>
+
         </div>
 
         {/* Pricing Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 mb-16 relative z-10">
             <PricingCard 
                 title="Basic"
-                {...calculateDiscountedPrice(isYearly ? currentPricing.basicYearly : currentPricing.basicMonthly)}
-                period={isYearly ? 'سنة' : 'شهر'}
+                {...calculateDiscountedPrice(currentPricing.basicYearly)}
+                period={'سنة'}
                 description="ابدأ بقوة وسهولة لإدارة متجرك الصغير مع واجهة استخدام بديهية."
                 color="bg-slate-800"
                 icon={<Store size={24} />}
-                limits={getPlanDetails(isYearly ? 'Basic Year' : 'Basic').displayLimits}
-                features={getPlanDetails(isYearly ? 'Basic Year' : 'Basic').features}
-                isCurrentPlan={licenseInfo?.type === (isYearly ? 'Basic Year' : 'Basic')}
-                onSubscribe={licenseInfo?.type === (isYearly ? 'Basic Year' : 'Basic') ? () => addToast('أنت مشترك بالفعل في هذه الباقة', 'info') : openActivationModal}
+                limits={getPlanDetails('Basic Year').displayLimits}
+                features={getPlanDetails('Basic Year').features}
+                isCurrentPlan={licenseInfo?.type === 'Basic Year'}
+                onSubscribe={licenseInfo?.type === 'Basic Year' ? () => addToast('أنت مشترك بالفعل في هذه الباقة', 'info') : openActivationModal}
                 variant="glow"
                 delay={0.1}
-                currency={currency}
+                currency={'EGP'}
                 licenseType={licenseInfo?.type}
             />
             <PricingCard 
                 title="Pro"
-                {...calculateDiscountedPrice(isYearly ? currentPricing.proYearly : currentPricing.proMonthly)}
-                period={isYearly ? 'سنة' : 'شهر'}
+                {...calculateDiscountedPrice(currentPricing.proYearly)}
+                period={'سنة'}
                 description="ارتقِ لأقوى أدوات الإدارة والمتابعة المصممة للمشاريع المتنامية."
                 popular={true}
                 color="bg-blue-600"
                 icon={<Crown size={24} />}
-                limits={getPlanDetails(isYearly ? 'Pro Year' : 'Pro').displayLimits}
-                features={getPlanDetails(isYearly ? 'Pro Year' : 'Pro').features}
-                isCurrentPlan={licenseInfo?.type === (isYearly ? 'Pro Year' : 'Pro')}
-                onSubscribe={licenseInfo?.type === (isYearly ? 'Pro Year' : 'Pro') ? () => addToast('أنت مشترك بالفعل في هذه الباقة', 'info') : openActivationModal}
+                limits={getPlanDetails('Pro Year').displayLimits}
+                features={getPlanDetails('Pro Year').features}
+                isCurrentPlan={licenseInfo?.type === 'Pro Year'}
+                onSubscribe={licenseInfo?.type === 'Pro Year' ? () => addToast('أنت مشترك بالفعل في هذه الباقة', 'info') : openActivationModal}
                 variant="glow"
                 delay={0.2}
-                currency={currency}
+                currency={'EGP'}
                 licenseType={licenseInfo?.type}
             />
             <PricingCard 
                 title="Business"
-                {...calculateDiscountedPrice(isYearly ? currentPricing.businessYearly : currentPricing.businessMonthly)}
-                period={isYearly ? 'سنة' : 'شهر'}
+                {...calculateDiscountedPrice(currentPricing.businessYearly)}
+                period={'سنة'}
                 description="بنية تحتية متينة وحلول مخصصة للمؤسسات والشركات الرائدة."
                 color="bg-indigo-600"
                 icon={<Building2 size={24} />}
-                limits={getPlanDetails(isYearly ? 'Business Year' : 'Business').displayLimits}
-                features={getPlanDetails(isYearly ? 'Business Year' : 'Business').features}
-                isCurrentPlan={licenseInfo?.type === (isYearly ? 'Business Year' : 'Business')}
-                onSubscribe={licenseInfo?.type === (isYearly ? 'Business Year' : 'Business') ? () => addToast('أنت مشترك بالفعل في هذه الباقة', 'info') : openActivationModal}
+                limits={getPlanDetails('Business Year').displayLimits}
+                features={getPlanDetails('Business Year').features}
+                isCurrentPlan={licenseInfo?.type === 'Business Year'}
+                onSubscribe={licenseInfo?.type === 'Business Year' ? () => addToast('أنت مشترك بالفعل في هذه الباقة', 'info') : openActivationModal}
                 variant="glow"
                 delay={0.3}
-                currency={currency}
+                currency={'EGP'}
                 licenseType={licenseInfo?.type}
             />
         </div>

@@ -14,6 +14,7 @@ import { useSettings } from '../hooks/useSettings';
 import { formatCurrency, toArabicIndic } from '../utils/localization';
 import TableSkeleton from '../components/ui/TableSkeleton';
 import { useToasts } from '../hooks/useToasts';
+import { usePlan } from '../hooks/usePlan'; // Add usePlan import
 
 const CustomersPage: React.FC = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -32,6 +33,7 @@ const CustomersPage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { settings } = useSettings();
   const { addToast } = useToasts();
+  const { limits } = usePlan(); // Use limits
 
   const fetchCustomers = useCallback(async () => {
     setLoading(true);
@@ -41,6 +43,16 @@ const CustomersPage: React.FC = () => {
   }, []);
 
   useEffect(() => { fetchCustomers(); }, [fetchCustomers]);
+
+  const handleOpenAddModal = () => {
+       if (customers.length >= limits.maxCustomers) {
+           addToast(`عذراً، لقد وصلت للحد الأقصى للعملاء في خطتك الحالية (${limits.maxCustomers} عميل). يرجى الترقية لباقة أعلى.`, 'error');
+           return;
+       }
+       setEditingCustomer(null);
+       setIsModalOpen(true);
+  };
+
 
   const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -168,7 +180,7 @@ const CustomersPage: React.FC = () => {
             )}
             <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleImportCSV} />
             <Button onClick={() => fileInputRef.current?.click()} variant="secondary" className="rounded-xl h-10"><Upload size={18} /> استيراد CSV</Button>
-            <Button onClick={() => { setEditingCustomer(null); setIsModalOpen(true); }} className="rounded-xl h-10"><PlusCircle size={18} /> إضافة عميل</Button>
+            <Button onClick={handleOpenAddModal} className="rounded-xl h-10"><PlusCircle size={18} /> إضافة عميل</Button>
         </div>
       </div>
       <Card className="p-0 border-none shadow-premium">

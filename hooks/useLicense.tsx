@@ -133,6 +133,7 @@ export const LicenseProvider: React.FC<{ children: ReactNode }> = ({ children })
         const actKey = branchId === 'main' ? 'tp_free_activation' : `tp_free_activation_${branchId}`;
         
         localStorage.setItem(key, 'FREE-PLAN-ACTIVE');
+        secureStorage.setItem(key, 'FREE-PLAN-ACTIVE');
         let freeAct = localStorage.getItem(actKey);
         if (!freeAct) {
             freeAct = new Date().toISOString();

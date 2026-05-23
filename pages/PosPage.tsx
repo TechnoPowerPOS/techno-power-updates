@@ -294,7 +294,7 @@ const PosPage: React.FC = () => {
         });
     }, [searchTerm, products]);
 
-    const isGrid = !settings?.posLayout || settings.posLayout === 'grid';
+    const isGrid = settings?.posLayout === 'grid';
     const categories = useMemo(() => ['All', ...Array.from(new Set(products.map(p => p.category)))], [products]);
     const gridProducts = useMemo(() => {
         let filtered = products;
