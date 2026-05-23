@@ -2,23 +2,28 @@
 import React, { useState, useEffect } from 'react';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import { CHANGELOG_DATA, LATEST_VERSION } from '../changelog';
 import { Download, RefreshCw, CheckCircle, Package, Rocket, Clock, ShieldCheck } from 'lucide-react';
 import { useSettings } from '../hooks/useSettings';
 import { toArabicIndic } from '../utils/localization';
+import { useChangelog } from '../hooks/useChangelog';
 
 const SystemUpdatesPage: React.FC = () => {
     const { settings } = useSettings();
+    const { changelogData, latestVersion } = useChangelog();
     const [isDownloading, setIsDownloading] = useState(false);
-    const currentVersion = '1.18.0';
-    const hasUpdate = currentVersion !== LATEST_VERSION;
+    const currentVersion = '1.18.0'; // Ideally this would come from env or manifest
+    const hasUpdate = currentVersion !== latestVersion;
 
-    const handleSimulateDownload = () => {
-        setIsDownloading(true);
-        setTimeout(() => {
-            setIsDownloading(false);
-            alert("تم تنزيل حزمة التحديث بنجاح. يرجى التوجه لصفحة الإعدادات لرفع الملف وتثبيته.");
-        }, 3000);
+    const handleDownload = (url?: string) => {
+        if (url && url !== '#') {
+            window.open(url, '_blank');
+        } else {
+            setIsDownloading(true);
+            setTimeout(() => {
+                setIsDownloading(false);
+                alert("تم تنزيل حزمة التحديث بنجاح. يرجى التوجه لصفحة الإعدادات لرفع الملف وتثبيته.");
+            }, 3000);
+        }
     };
 
     return (
@@ -30,7 +35,7 @@ const SystemUpdatesPage: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-8">
-                    {CHANGELOG_DATA.map((entry, idx) => (
+                    {changelogData.map((entry: any, idx: number) => (
                         <Card key={entry.version} className="relative overflow-hidden group">
                             {idx === 0 && (
                                 <div className="absolute top-4 left-[-30px] bg-indigo-600 text-white text-[10px] font-black px-10 py-1 rotate-[-45deg] shadow-lg">
@@ -46,7 +51,7 @@ const SystemUpdatesPage: React.FC = () => {
                                     </div>
                                 </div>
                                 <Button 
-                                    onClick={handleSimulateDownload}
+                                    onClick={() => handleDownload(entry.downloadUrl)}
                                     isLoading={isDownloading}
                                     variant={idx === 0 ? 'primary' : 'secondary'}
                                     className="rounded-xl h-11 px-6 text-xs font-black"
@@ -58,7 +63,7 @@ const SystemUpdatesPage: React.FC = () => {
                             <div className="space-y-4">
                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b dark:border-slate-800 pb-2">مميزات هذا الإصدار:</p>
                                 <ul className="space-y-3">
-                                    {entry.changes.map((change, i) => (
+                                    {entry.changes.map((change: any, i: number) => (
                                         <li key={i} className="flex items-start gap-3">
                                             <div className={`mt-1 flex-shrink-0 w-2 h-2 rounded-full ${change.type === 'new' ? 'bg-emerald-500' : change.type === 'improvement' ? 'bg-blue-500' : 'bg-rose-500'}`}></div>
                                             <p className="text-sm font-bold text-slate-700 dark:text-slate-300 leading-relaxed">{change.description}</p>

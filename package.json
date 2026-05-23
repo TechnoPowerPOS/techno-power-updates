@@ -1,7 +1,7 @@
 {
   "name": "techno-power-pos",
   "private": false,
-  "version": "1.15.3",
+  "version": "1.15.4",
   "type": "module",
   "description": "نظام تكنو باور للمبيعات والمخزون",
   "author": "Eng. Mohamed Shibl",

@@ -510,7 +510,7 @@ const SettingsPage: React.FC = () => {
                                         {changelogData[0].title}
                                     </h4>
                                     <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-2">
-                                        {changelogData[0].changes[0]}...
+                                        {changelogData[0].changes[0]?.description}...
                                     </p>
                                 </div>
                             ) : (
