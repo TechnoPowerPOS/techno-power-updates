@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAdminAuth } from '../hooks/useAdminAuth';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import { Image as ImageIcon, Upload, Save, ArrowLeft, MessageSquare, AlertCircle, GripVertical } from 'lucide-react';
+import { Image as ImageIcon, Upload, Save, ArrowLeft, MessageSquare, AlertCircle, GripVertical, Twitter, Facebook, Instagram, Youtube, Globe } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -11,73 +11,10 @@ import { useToasts } from '../hooks/useToasts';
 import { processImageFile } from '../utils/imageHelpers';
 import { GlobalSettings } from '../types';
 import { NAV_LINKS } from '../constants';
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-
-const SortableItem = ({ id, active, title, icon: Icon }: { id: string, active: boolean, title: string, icon: any }) => {
-    const {
-        attributes,
-        listeners,
-        setNodeRef,
-        transform,
-        transition,
-    } = useSortable({ id });
-
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-    };
-
-    return (
-        <div ref={setNodeRef} style={style} {...attributes} {...listeners} className={`flex items-center gap-3 p-3 mb-2 rounded-xl border transition-all ${active ? 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-sm cursor-grab' : 'bg-slate-50 dark:bg-slate-900 border-slate-100 dark:border-slate-800 opacity-50'}`}>
-            <GripVertical className="text-slate-400" size={16} />
-            <Icon size={18} className={active ? 'text-indigo-600' : 'text-slate-400'} />
-            <span className={`font-bold text-sm ${active ? 'text-slate-700 dark:text-slate-200' : 'text-slate-400'}`}>{title}</span>
-        </div>
-    );
-};
 
 const AdminGlobalSettingsPage: React.FC = () => {
     const navigate = useNavigate();
     const { addToast } = useToasts();
-    
-    const sensors = useSensors(
-        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-        useSensor(KeyboardSensor, {
-            coordinateGetter: sortableKeyboardCoordinates,
-        })
-    );
-
-    const handleDragEnd = (event: DragEndEvent) => {
-        const { active, over } = event;
-        if (over && active.id !== over.id) {
-            setSettings((prev) => {
-                if (!prev) return prev;
-                const currentOrder = prev.moduleOrder || NAV_LINKS.map(l => l.id);
-                const oldIndex = currentOrder.indexOf(active.id as string);
-                const newIndex = currentOrder.indexOf(over.id as string);
-                return {
-                    ...prev,
-                    moduleOrder: arrayMove(currentOrder, oldIndex, newIndex),
-                };
-            });
-        }
-    };
     
     const [settings, setSettings] = useState<GlobalSettings>({
         popupOffer: {
@@ -91,6 +28,13 @@ const AdminGlobalSettingsPage: React.FC = () => {
         supportContact: {
             phone: '',
             email: ''
+        },
+        socialLinks: {
+            facebook: '',
+            twitter: '',
+            instagram: '',
+            youtube: '',
+            website: ''
         }
     });
     
@@ -108,7 +52,8 @@ const AdminGlobalSettingsPage: React.FC = () => {
                     const data = snap.data() as GlobalSettings;
                     setSettings({
                         ...data,
-                        popupOffer: data.popupOffer || { enabled: false, title: '', message: '' }
+                        popupOffer: data.popupOffer || { enabled: false, title: '', message: '', buttonText: 'تخطي' },
+                        socialLinks: data.socialLinks || { facebook: '', twitter: '', instagram: '', youtube: '', website: '' }
                     });
                 }
             } catch (e) {
@@ -207,6 +152,98 @@ const AdminGlobalSettingsPage: React.FC = () => {
                         </div>
                     </Card>
 
+                    <Card title="روابط التواصل الاجتماعي والموقع الإلكتروني">
+                        <div className="space-y-6 pt-2">
+                            <p className="text-xs text-slate-500 font-bold">قم بتحديث الروابط أدناه ليتم عرضها تلقائياً للمستخدمين وزوار النظام في شاشة "حول النظام" لتسهيل التواصل وقنوات الدعم.</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="text-xs font-black text-slate-500 mb-1 block">رابط صفحة فيسبوك (Facebook)</label>
+                                    <div className="relative">
+                                        <span className="absolute inset-y-0 start-0 flex items-center ps-3 text-slate-400"><Facebook size={16} /></span>
+                                        <input 
+                                            type="text" 
+                                            value={settings.socialLinks?.facebook || ''} 
+                                            onChange={e => setSettings({
+                                                ...settings, 
+                                                socialLinks: { ...(settings.socialLinks || {}), facebook: e.target.value }
+                                            })} 
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl ps-10 pe-4 py-3 font-bold" 
+                                            placeholder="https://facebook.com/username" 
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-black text-slate-500 mb-1 block">رابط منصة X (تويتر سابقاً)</label>
+                                    <div className="relative">
+                                        <span className="absolute inset-y-0 start-0 flex items-center ps-3 text-slate-400"><Twitter size={16} /></span>
+                                        <input 
+                                            type="text" 
+                                            value={settings.socialLinks?.twitter || ''} 
+                                            onChange={e => setSettings({
+                                                ...settings, 
+                                                socialLinks: { ...(settings.socialLinks || {}), twitter: e.target.value }
+                                            })} 
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl ps-10 pe-4 py-3 font-bold" 
+                                            placeholder="https://x.com/username" 
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="text-xs font-black text-slate-500 mb-1 block">رابط حساب انستجرام (Instagram)</label>
+                                    <div className="relative">
+                                        <span className="absolute inset-y-0 start-0 flex items-center ps-3 text-slate-400"><Instagram size={16} /></span>
+                                        <input 
+                                            type="text" 
+                                            value={settings.socialLinks?.instagram || ''} 
+                                            onChange={e => setSettings({
+                                                ...settings, 
+                                                socialLinks: { ...(settings.socialLinks || {}), instagram: e.target.value }
+                                            })} 
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl ps-10 pe-4 py-3 font-bold" 
+                                            placeholder="https://instagram.com/username" 
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-black text-slate-500 mb-1 block">رابط قناة يوتيوب (YouTube)</label>
+                                    <div className="relative">
+                                        <span className="absolute inset-y-0 start-0 flex items-center ps-3 text-slate-400"><Youtube size={16} /></span>
+                                        <input 
+                                            type="text" 
+                                            value={settings.socialLinks?.youtube || ''} 
+                                            onChange={e => setSettings({
+                                                ...settings, 
+                                                socialLinks: { ...(settings.socialLinks || {}), youtube: e.target.value }
+                                            })} 
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl ps-10 pe-4 py-3 font-bold" 
+                                            placeholder="https://youtube.com/c/channelname" 
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 gap-6">
+                                <div>
+                                    <label className="text-xs font-black text-slate-500 mb-1 block">الموقع الالكتروني الرسمي (Website)</label>
+                                    <div className="relative">
+                                        <span className="absolute inset-y-0 start-0 flex items-center ps-3 text-slate-400"><Globe size={16} /></span>
+                                        <input 
+                                            type="text" 
+                                            value={settings.socialLinks?.website || ''} 
+                                            onChange={e => setSettings({
+                                                ...settings, 
+                                                socialLinks: { ...(settings.socialLinks || {}), website: e.target.value }
+                                            })} 
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl ps-10 pe-4 py-3 font-bold" 
+                                            placeholder="https://yourwebsite.com" 
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+
                     <Card title="هوية النظام (لوجو عالمي)">
                         <div className="flex flex-col gap-6">
                              <div className="flex flex-col md:flex-row gap-8 items-center pt-2">
@@ -284,7 +321,7 @@ const AdminGlobalSettingsPage: React.FC = () => {
                                                     type="text" 
                                                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 font-bold text-sm"
                                                     placeholder="تخطي"
-                                                    value={settings.popupOffer.buttonText}
+                                                    value={settings.popupOffer.buttonText || ''}
                                                     onChange={e => setSettings({ ...settings, popupOffer: { ...settings.popupOffer!, buttonText: e.target.value } })}
                                                 />
                                             </div>
@@ -360,72 +397,6 @@ const AdminGlobalSettingsPage: React.FC = () => {
                                             </div>
                                         </button>
                                     ))}
-                                </div>
-                            </div>
-                            
-                            <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
-                                <p className="text-xs font-bold text-slate-500 mb-4">ترتيب وإدارة أولوية الأقسام (اسحب وأفلت للترتيب):</p>
-                                
-                                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                                    <SortableContext
-                                        items={settings.moduleOrder || NAV_LINKS.map(l => l.id)}
-                                        strategy={verticalListSortingStrategy}
-                                    >
-                                        <div className="flex flex-col gap-1 max-w-xl">
-                                            {(settings.moduleOrder ? 
-                                                settings.moduleOrder.map(id => NAV_LINKS.find(l => l.id === id)).filter(Boolean) as typeof NAV_LINKS
-                                                : NAV_LINKS
-                                            ).map(link => {
-                                                const isActive = !(settings.hiddenModules || []).includes(link.id);
-                                                const defaultName = 't_key' in link ? link.t_key : 'تسمية مفقودة';
-                                                const displayName = settings.customModuleNames?.[defaultName] || defaultName;
-                                                return (
-                                                    <SortableItem 
-                                                        key={link.id} 
-                                                        id={link.id} 
-                                                        active={isActive} 
-                                                        title={displayName} 
-                                                        icon={link.icon} 
-                                                    />
-                                                );
-                                            })}
-                                        </div>
-                                    </SortableContext>
-                                </DndContext>
-                            </div>
-                            
-                            <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
-                                <p className="text-xs font-bold text-slate-500 mb-4">تعديل أسماء الأقسام (تغيير مسميات القائمة الجانبية):</p>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {NAV_LINKS.flatMap(item => ('children' in item ? [item, ...item.children] : [item])).map(link => {
-                                        const defaultName = 't_key' in link ? link.t_key : 'تسمية مفقودة';
-                                        const isActive = !(settings.hiddenModules || []).includes(link.id);
-                                        if (!isActive) return null;
-                                        return (
-                                            <div key={link.id} className="flex flex-col gap-1.5">
-                                                <label className="text-[10px] font-bold text-slate-400 ms-1 flex items-center gap-1.5">
-                                                    <link.icon size={12} />
-                                                    الاسم الافتراضي: {defaultName}
-                                                </label>
-                                                <input 
-                                                    type="text" 
-                                                    className="w-full p-2.5 bg-white dark:bg-slate-900 border rounded-xl font-bold text-sm focus:border-indigo-500 transition-all dark:border-slate-700" 
-                                                    placeholder={defaultName}
-                                                    value={settings.customModuleNames?.[defaultName] || ''}
-                                                    onChange={e => {
-                                                        const val = e.target.value;
-                                                        setSettings(prev => ({
-                                                            ...prev,
-                                                            customModuleNames: {
-                                                                ...(prev.customModuleNames || {}),
-                                                                [defaultName]: val
-                                                            }
-                                                        }));
-                                                    }}
-                                                />
-                                            </div>
-                                        );
-                                    })}
                                 </div>
                             </div>
                         </div>

@@ -1,19 +1,31 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { api } from '../services/mockApi';
 import type { SyncLog } from '../types';
-import { Server, Wifi, CheckCircle, RefreshCw, Database, Key, Trash2, AlertTriangle, Download, Terminal } from 'lucide-react';
+import { Server, Wifi, CheckCircle, RefreshCw, Database, Key, Trash2, AlertTriangle, Download, Terminal, Settings } from 'lucide-react';
 import { toArabicIndic } from '../utils/localization';
 import { useSync } from '../hooks/useSync';
 import firebaseConfig from '../firebase-applet-config.json';
 import { getCurrentDbKey } from '../services/branchService';
+import { useLicense } from '../hooks/useLicense';
+import { getPlanLimits } from '../utils/planPermissions';
+import JSZip from 'jszip';
+import LockedFeature from '../components/ui/LockedFeature';
 
 const DatabaseStatusPage: React.FC = () => {
     const [logs, setLogs] = useState<SyncLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [syncingTable, setSyncingTable] = useState<string | null>(null);
     const { isOnline, setOnline } = useSync();
+    const { licenseInfo } = useLicense();
+    const limits = getPlanLimits(licenseInfo.type);
+    
+    // Auto Backup State
+    const [autoBackupInterval, setAutoBackupInterval] = useState<number>(24);
+    const [autoBackupEnabled, setAutoBackupEnabled] = useState(false);
+    const [isConfiguringAutoBackup, setIsConfiguringAutoBackup] = useState(false);
+
     
     // Diagnostics State
     const [allStorageKeys, setAllStorageKeys] = useState<{key: string, size: number}[]>([]);
@@ -61,6 +73,40 @@ const DatabaseStatusPage: React.FC = () => {
         if (seconds < 60) return `منذ ${toArabicIndic(seconds)} ثوانٍ`;
         const minutes = Math.round(seconds / 60);
         return `منذ ${toArabicIndic(minutes)} دقيقة`;
+    };
+
+    const handleDownloadJson = async () => {
+        try {
+            const data = await api.getBackupData();
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `techno_power_backup_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('Backup JSON generated failed', err);
+        }
+    };
+
+    const handleDownloadZip = async () => {
+        if (!limits.hasZipBackup) return;
+        try {
+            const data = await api.getBackupData();
+            const zip = new JSZip();
+            zip.file(`techno_power_backup_${new Date().toISOString().split('T')[0]}.json`, data);
+            
+            const content = await zip.generateAsync({ type: 'blob' });
+            const url = URL.createObjectURL(content);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `techno_power_backup_${new Date().toISOString().split('T')[0]}.zip`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('Backup ZIP generated failed', err);
+        }
     };
 
     if (loading) {
@@ -239,13 +285,31 @@ const DatabaseStatusPage: React.FC = () => {
                 </div>
             </Card>
 
-            <Card title="أدوات المطور المتقدمة">
+            <Card title="أدوات تصدير النسخ الاحتياطي (BackupTools)">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-                    <Button variant="ghost" className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 h-20 flex flex-col justify-center items-center gap-2 text-slate-400 hover:text-blue-600 hover:border-blue-500 transition-all">
+                    <Button onClick={handleDownloadJson} variant="ghost" className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 h-20 flex flex-col justify-center items-center gap-2 text-slate-400 hover:text-blue-600 hover:border-blue-500 transition-all">
                         <Download size={20} />
                         <span className="text-xs font-black">تنزيل نسخة احتياطية (JSON)</span>
                     </Button>
                     
+                    {limits.hasZipBackup ? (
+                        <Button onClick={handleDownloadZip} variant="ghost" className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 h-20 flex flex-col justify-center items-center gap-2 text-slate-400 hover:text-fuchsia-600 hover:border-fuchsia-500 transition-all">
+                            <Download size={20} />
+                            <span className="text-xs font-black">تنزيل نسخة احتياطية (ZIP)</span>
+                        </Button>
+                    ) : (
+                        <LockedFeature message="تصدير بصيغة ZIP متاح في الباقات المتقدمة" />
+                    )}
+
+                    <Button onClick={() => setIsConfiguringAutoBackup(true)} variant="ghost" className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 h-20 flex flex-col justify-center items-center gap-2 text-slate-400 hover:text-amber-600 hover:border-amber-500 transition-all">
+                        <Settings size={20} />
+                        <span className="text-xs font-black">إعدادات النسخ التلقائي</span>
+                    </Button>
+                </div>
+            </Card>
+
+            <Card title="أدوات المطور المتقدمة">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4">
                     <Button variant="ghost" className="rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 h-20 flex flex-col justify-center items-center gap-2 text-slate-400 hover:text-blue-600 hover:border-blue-500 transition-all">
                         <Terminal size={20} />
                         <span className="text-xs font-black">فحص تكامل الملفات</span>
@@ -266,6 +330,69 @@ const DatabaseStatusPage: React.FC = () => {
                     </Button>
                 </div>
             </Card>
+
+            {isConfiguringAutoBackup && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm shadow-2xl">
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 space-y-6">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-xl font-black">إعدادات النسخ الاحتياطي التلقائي</h3>
+                            <button onClick={() => setIsConfiguringAutoBackup(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                                ✕
+                            </button>
+                        </div>
+
+                        {!limits.hasAutoBackup ? (
+                            <LockedFeature message="هذه الميزة مدعومة في باقات الأعمال والشركات." />
+                        ) : (
+                            <div className="space-y-4">
+                                <label className="flex items-center gap-3">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={autoBackupEnabled} 
+                                        onChange={e => setAutoBackupEnabled(e.target.checked)} 
+                                        className="w-5 h-5 rounded text-blue-600 focus:ring-blue-500" 
+                                        disabled={!limits.hasAutoBackup}
+                                    />
+                                    <span className="font-bold">تفعيل النسخ الاحتياطي التلقائي (محلياً)</span>
+                                </label>
+
+                                {autoBackupEnabled && (
+                                    <>
+                                        <div>
+                                            <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">تكرار النسخ الاحتياطي</label>
+                                            <select 
+                                                value={autoBackupInterval} 
+                                                onChange={e => setAutoBackupInterval(parseInt(e.target.value))}
+                                                className="w-full rounded-2xl border-2 border-slate-200 p-3"
+                                            >
+                                                <option value={1}>كل ساعة</option>
+                                                <option value={12}>كل 12 ساعة</option>
+                                                <option value={24}>يومياً</option>
+                                                <option value={168}>أسبوعياً</option>
+                                            </select>
+                                        </div>
+                                        <p className="text-xs font-bold text-slate-500 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-2xl">
+                                            سيعمل البرنامج على أخذ الجلسات وتصدير النسخة الاحتياطية في الخلفية حسب التردد المحدد لتتمكن من تنزيلها. ملاحظة: متصفح الويب لا يسمح بحفظ الملفات تلقائياً على جهازك بدون تدخل، سيتم تحميله في مجلد التنزيلات الافتراضي، أو يمكنك ربط مسار محلي في تطبيق سطح المكتب.
+                                        </p>
+                                    </>
+                                )}
+                                
+                                <Button onClick={() => {
+                                    // Save config to mockApi or local settings
+                                    localStorage.setItem('tp_auto_backup_config', JSON.stringify({
+                                        enabled: autoBackupEnabled,
+                                        interval: autoBackupInterval
+                                    }));
+                                    alert('تم حفظ إعدادات النسخ الاحتياطي التلقائي.');
+                                    setIsConfiguringAutoBackup(false);
+                                }} className="w-full rounded-2xl mt-4">
+                                    حفظ الإعدادات
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

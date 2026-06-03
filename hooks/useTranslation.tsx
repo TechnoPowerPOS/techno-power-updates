@@ -36,7 +36,7 @@ export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }
           setCustomModuleNames(snap.data().customModuleNames);
         }
       } catch (e) {
-        console.error("Error fetching custom module names", e);
+        console.warn("Could not fetch custom module names (possibly offline).");
       }
     };
     fetchGlobalSettings();

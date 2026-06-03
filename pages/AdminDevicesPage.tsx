@@ -121,6 +121,15 @@ const AdminDevicesPage: React.FC = () => {
                 customersList.push({ ...doc.data(), id: doc.id } as UserIdentity);
             });
 
+            // Sort customers so we pick the most recently updated one first if duplicates exist
+            customersList.sort((a: any, b: any) => {
+                const getLatest = (c: any) => Math.max(
+                    c.registeredAt ? new Date(c.registeredAt).getTime() : 0,
+                    c.updatedAt ? new Date(c.updatedAt).getTime() : 0
+                );
+                return getLatest(b) - getLatest(a);
+            });
+
             // Map data
             const enrichedDevices = devicesList.map(device => {
                 const associatedLicense = licensesList.find(l => l.deviceId === device.deviceId || l.deviceIds?.includes(device.deviceId));
@@ -160,9 +169,27 @@ const AdminDevicesPage: React.FC = () => {
                     licenseCreatedAt = associatedLicense.createdAt;
                     licenseActivatedAt = associatedLicense.activatedAt || '';
                     licenseExpiresAt = associatedLicense.expiresAt || '';
-                } else if (customer) {
-                    // Try to guess license from customer directly if they don't have a formal license mapping
-                    licenseType = (customer as any).licenseType || (customer as any).plan || 'نسخة مجانية';
+                    
+                    // Specific check: if status is not active, it shouldn't show as a plain plan
+                    if (licenseStatus !== 'active' && licenseType !== 'نسخة مجانية') {
+                        licenseType = `${licenseType} (${licenseStatus === 'pending' ? 'بانتظار التفعيل' : licenseStatus})`;
+                    }
+
+                    // Check for expiration
+                    if (licenseExpiresAt && new Date(licenseExpiresAt) < new Date()) {
+                        licenseStatus = 'expired';
+                        licenseType = `${associatedLicense.type} (منتهي)`;
+                    }
+                } else {
+                    // Force Free for anyone without a valid license doc
+                    licenseType = 'نسخة مجانية';
+                    licenseStatus = 'inactive';
+                    
+                    // Exception for confirmed legacy users if they have a plan set
+                    if (customer && (customer as any).confirmed && (customer as any).plan && (customer as any).plan !== 'Free') {
+                        licenseType = (customer as any).plan;
+                        licenseStatus = 'active';
+                    }
                 }
 
                 return {
@@ -196,7 +223,7 @@ const AdminDevicesPage: React.FC = () => {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             if (user) {
-                const isAdmin = user.email === 'm7mdshipl@gmail.com' || user.email === 'admin@techno.com';
+                const isAdmin = user.email === 'm7mdshipl@gmail.com';
                 if (isAdmin) {
                     fetchData();
                 } else {
@@ -222,11 +249,29 @@ const AdminDevicesPage: React.FC = () => {
         const path = `devices/${device.deviceId}`;
         try {
             await updateDoc(doc(db, 'devices', device.deviceId), {
-                isBlocked: !device.isBlocked
+                isBlocked: !device.isBlocked,
+                blockMessage: device.isBlocked ? '' : 'تم حظر هذا الجهاز من قبل الإدارة. يرجى مراجعة الدعم الفني.'
             });
             // Update local state
             setDevices(prev => prev.map(d => 
-                d.deviceId === device.deviceId ? { ...d, isBlocked: !d.isBlocked } : d
+                d.deviceId === device.deviceId ? { ...d, isBlocked: !d.isBlocked, blockMessage: d.isBlocked ? '' : 'تم حظر هذا الجهاز من قبل الإدارة. يرجى مراجعة الدعم الفني.' } : d
+            ));
+        } catch (e) {
+            handleFirestoreError(e, OperationType.UPDATE, path);
+        }
+    };
+
+    const handleInstallmentBlock = async (device: DeviceData) => {
+        if (!window.confirm("هل أنت متأكد من إيقاف هذا الجهاز لعدم سداد القسط؟ سيتم منعه من الدخول للنظام.")) return;
+
+        const path = `devices/${device.deviceId}`;
+        try {
+            await updateDoc(doc(db, 'devices', device.deviceId), {
+                isBlocked: true,
+                blockMessage: "لقد تم إيقاف البرنامج مؤقتاً لعدم سداد القسط المستحق. برجاء سداد القسط لاستئناف العمل."
+            });
+            setDevices(prev => prev.map(d => 
+                d.deviceId === device.deviceId ? { ...d, isBlocked: true, blockMessage: "لقد تم إيقاف البرنامج مؤقتاً لعدم سداد القسط المستحق. برجاء سداد القسط لاستئناف العمل." } : d
             ));
         } catch (e) {
             handleFirestoreError(e, OperationType.UPDATE, path);
@@ -257,19 +302,42 @@ const AdminDevicesPage: React.FC = () => {
     };
 
     const getPlanLabel = (type: string) => {
-        const rawPlanText = type.split(' ')[0];
-        const PLAN_LABELS: Record<string, string> = {
-            'Free': 'باقة مجانية الدائمة',
-            'Trial': 'فترة تجريبية',
-            'Monthly': 'باقة شهرية',
-            'Semiannual': 'باقة نصف سنوية',
-            'Yearly': 'باقة سنوية',
-            'Lifetime': 'مدى الحياة',
-            'Basic': 'الباقة الأساسية',
-            'Pro': 'باقة المحترفين',
-            'Business': 'باقة الأعمال'
+        if (!type || type === 'Free' || type === 'نسخة مجانية') return <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-500 text-[10px] font-bold">باقة مجانية</span>;
+        
+        let label = '';
+        let bgColor = 'bg-slate-100 text-slate-600';
+        const isTrial = type.includes('Trial') || type.toLowerCase().includes('trial');
+
+        const PLAN_LABELS: Record<string, { label: string, color: string }> = {
+            'Basic': { label: 'أساسية', color: 'bg-blue-50 text-blue-700 border border-blue-200' },
+            'Pro': { label: 'محترفين', color: 'bg-indigo-50 text-indigo-700 border border-indigo-200' },
+            'Business': { label: 'أعمال', color: 'bg-purple-50 text-purple-700 border border-purple-200' },
+            'Enterprise': { label: 'مشروعات', color: 'bg-rose-50 text-rose-700 border border-rose-200' }
         };
-        return PLAN_LABELS[rawPlanText] || type;
+
+        const keys = Object.keys(PLAN_LABELS);
+        const match = keys.find(k => type.includes(k));
+        
+        if (match) {
+            label = PLAN_LABELS[match].label;
+            bgColor = PLAN_LABELS[match].color;
+            if (type.includes('Yearly') || type.includes('Year')) label += ' - سنوية';
+            else if (type.includes('Monthly')) label += ' - شهرية';
+        } else {
+            label = type.replace(/Trial/gi, '').trim();
+            bgColor = 'bg-slate-100 text-slate-600 border border-slate-200';
+        }
+
+        if (isTrial) {
+            return (
+                <div className="flex flex-col gap-0.5">
+                    <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black ${bgColor}`}>{label}</span>
+                    <span className="px-2 py-0.5 rounded-lg bg-amber-50 text-amber-600 border border-amber-100 text-[9px] font-black text-center">فترة تجريبية</span>
+                </div>
+            );
+        }
+
+        return <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black ${bgColor}`}>{label}</span>;
     };
 
 
@@ -678,6 +746,15 @@ const AdminDevicesPage: React.FC = () => {
                                                     >
                                                         {device.isBlocked ? 'فك الحظر' : 'حظر الجهاز'}
                                                     </button>
+                                                    {!device.isBlocked && (
+                                                        <button 
+                                                            onClick={() => handleInstallmentBlock(device)}
+                                                            className="px-3 py-1.5 rounded bg-orange-100 text-orange-600 hover:bg-orange-200 dark:bg-orange-500/20 dark:hover:bg-orange-500/30 transition-colors text-xs font-bold w-24"
+                                                            title="إيقاف البرنامج لعدم سداد القسط"
+                                                        >
+                                                            حظر القسط
+                                                        </button>
+                                                    )}
                                                     <button
                                                         onClick={() => openMessageModal(device)}
                                                         className="px-3 py-1.5 rounded bg-indigo-100 text-indigo-600 hover:bg-indigo-200 dark:bg-indigo-500/20 dark:hover:bg-indigo-500/30 transition-colors text-xs font-bold flex items-center justify-center"
@@ -966,6 +1043,18 @@ const AdminDevicesPage: React.FC = () => {
                                     {selectedDevice.isBlocked ? <ShieldBan size={20} /> : <ShieldAlert size={20} />}
                                     {selectedDevice.isBlocked ? 'فك حظر الجهاز' : 'حظر الجهاز نهائياً'}
                                 </Button>
+                                {!selectedDevice.isBlocked && (
+                                    <Button 
+                                        onClick={() => {
+                                            handleInstallmentBlock(selectedDevice);
+                                            setDetailsModalOpen(false);
+                                        }}
+                                        className="flex-1 gap-2 font-black h-12 bg-orange-100 text-orange-600 hover:bg-orange-200 dark:bg-orange-500/20 dark:hover:bg-orange-500/30 dark:text-orange-400"
+                                    >
+                                        <ShieldAlert size={20} />
+                                        حظر القسط
+                                    </Button>
+                                )}
                             </div>
                         </div>
                         <div className="p-4 border-t border-slate-100 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 flex justify-end gap-2">

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { collection, query, getDocs, orderBy, limit, addDoc, serverTimestamp, doc, updateDoc, deleteDoc, where } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { collection, query, getDocs, orderBy, limit, addDoc, serverTimestamp, doc, updateDoc, deleteDoc, where } from '../../services/localFirestore';
+import { db  } from '../../services/localFirestore';
 import { handleFirestoreError, OperationType } from '../../services/firestoreErrorHandler';
 import { useToasts } from '../../hooks/useToasts';
 import { Send, Plus, Search, Filter, Inbox, CheckCircle, Clock, XCircle, FileText, X, Trash2, Edit3, Check } from 'lucide-react';
@@ -103,7 +103,7 @@ const RequestsPage: React.FC = () => {
                 
                 if (formData.withDeduction) {
                     // Fetch employee to get salary
-                    const empSnap = await import('firebase/firestore').then(f => f.getDoc(f.doc(db, 'hr_personnel', formData.employeeId)));
+                    const empSnap = await import('../../services/localFirestore').then(f => f.getDoc(f.doc(db, 'hr_personnel', formData.employeeId)));
                     if (empSnap.exists()) {
                         const empData = empSnap.data();
                         const salary = empData.salary || 0;

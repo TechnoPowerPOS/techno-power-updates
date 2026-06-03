@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 import SplashScreen from '../layout/SplashScreen';
-import { LayoutDashboard, Users, Key, AlertTriangle, Bell, UploadCloud, LogOut, Menu, X, Settings, ShieldCheck, DollarSign, MessageSquare, MonitorSmartphone, TrendingUp, LifeBuoy, Zap, Tag } from 'lucide-react';
+import { LayoutDashboard, Users, Key, AlertTriangle, Bell, UploadCloud, LogOut, Menu, X, Settings, ShieldCheck, DollarSign, MessageSquare, MonitorSmartphone, TrendingUp, LifeBuoy, Zap, Tag, FolderOpen } from 'lucide-react';
 import { useLicense } from '../../hooks/useLicense';
 
 const AdminLayout: React.FC = () => {
@@ -39,15 +39,15 @@ const AdminLayout: React.FC = () => {
 
     const navItems = [
         { path: '/admin-tool', icon: LayoutDashboard, label: 'لوحة القيادة (Dashboard)' },
+        { path: '/admin-tool/requests', icon: Users, label: 'طلبات العملاء (جديد)' },
+        { path: '/admin-tool/customers-files', icon: FolderOpen, label: 'ملفات العملاء' },
         { path: '/admin-tool/affiliates', icon: Key, label: 'نظام الإحالات (Affiliates)' },
-        { path: '/admin-tool/analytics', icon: TrendingUp, label: 'تحليلات النمو والاشتراكات' },
         { path: '/admin-tool/performance', icon: Zap, label: 'مراقبة أداء النظام' },
         { path: '/admin-tool/promo-codes', icon: Tag, label: 'الأكواد والعروض' },
         { path: '/admin-tool/devices', icon: MonitorSmartphone, label: 'إدارة أجهزة الوصول' },
         { path: '/admin-tool/licenses', icon: Key, label: 'نظام التراخيص' },
         { path: '/admin-tool/pricing', icon: DollarSign, label: 'تعديل الأسعار' },
         { path: '/admin-tool/plan-limits', icon: ShieldCheck, label: 'صلاحيات الباقات' },
-        { path: '/admin-tool/tampering', icon: AlertTriangle, label: 'التلاعب والمشاكل' },
         { path: '/admin-tool/expired', icon: AlertTriangle, label: 'الاشتراكات المنتهية' },
         { path: '/admin-tool/updates', icon: UploadCloud, label: 'تحديثات النظام' },
         { path: '/admin-tool/notifications', icon: Bell, label: 'الإشعارات العامة' },

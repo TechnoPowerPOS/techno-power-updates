@@ -122,7 +122,7 @@ const BulkPriceUpdateModal: React.FC<BulkPriceUpdateModalProps> = ({ isOpen, onC
                         <input 
                             type="number" 
                             step="0.1"
-                            value={percentage || ''} 
+                            value={percentage === 0 ? '' : percentage} 
                             onChange={e => setPercentage(parseFloat(e.target.value) || 0)}
                             placeholder="مثال: 10 للزيادة أو -5 للخصم"
                             className="w-full h-14 ps-12 pe-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:border-indigo-500 outline-none font-black text-lg transition-all"

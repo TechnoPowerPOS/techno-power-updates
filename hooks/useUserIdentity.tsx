@@ -12,67 +12,39 @@ export const useUserIdentity = () => {
         let fired = false;
         const safetyTimeout = setTimeout(() => {
             if (!fired) setIsLoading(false);
-        }, 10000);
+        }, 12000);
 
-        const localUser = getUserIdentity();
         let unsubSnap: (() => void) | undefined;
 
-        if (localUser && localUser.id) {
+        // Ensure Firebase auth is ready before subscribing to prevent transient "permission-denied" errors
+        const unsubAuth = onAuthStateChanged(auth, (user) => {
             fired = true;
             clearTimeout(safetyTimeout);
-            unsubSnap = onSnapshot(doc(db, 'customers', localUser.id), (docSnap) => {
-                if (docSnap.exists()) {
-                    const data = docSnap.data() as UserIdentity;
-                    data.id = docSnap.id;
-                    setIdentity(data);
-                    localStorage.setItem('tpv_user_identity', JSON.stringify(data));
-                }
-                setIsLoading(false);
-            }, (error) => {
-                console.error('onSnapshot customers error:', error);
-                if (error.code === 'permission-denied') {
-                    // Stale or inaccessible identity
-                    console.warn('Clearing stale user identity due to permission error');
-                    localStorage.removeItem('tpv_user_identity');
-                    setIdentity(null);
-                }
-                setIsLoading(false);
-            });
-        } else {
-            // Wait for auth if no local user exists initially
-            const unsubAuth = onAuthStateChanged(auth, (user) => {
-                fired = true;
-                clearTimeout(safetyTimeout);
-                const currentLocalUser = getUserIdentity();
-                if (user && currentLocalUser && currentLocalUser.id) {
-                    unsubSnap = onSnapshot(doc(db, 'customers', currentLocalUser.id), (docSnap) => {
-                        if (docSnap.exists()) {
-                            const data = docSnap.data() as UserIdentity;
-                            data.id = docSnap.id;
-                            setIdentity(data);
-                            localStorage.setItem('tpv_user_identity', JSON.stringify(data));
-                        }
-                        setIsLoading(false);
-                    }, (error) => {
-                        console.error('onSnapshot customers error:', error);
-                        if (error.code === 'permission-denied') {
-                            localStorage.removeItem('tpv_user_identity');
-                            setIdentity(null);
-                        }
-                        setIsLoading(false);
-                    });
-                } else {
-                    setIsLoading(false);
-                }
-            });
-            return () => {
-                unsubAuth();
+            
+            const currentLocalUser = getUserIdentity();
+            if (currentLocalUser && currentLocalUser.id) {
+                // If snap listener is already active, unsubscribe first to prevent duplicates
                 if (unsubSnap) unsubSnap();
-                clearTimeout(safetyTimeout);
-            };
-        }
+                
+                unsubSnap = onSnapshot(doc(db, 'customers', currentLocalUser.id), (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data() as UserIdentity;
+                        data.id = docSnap.id;
+                        setIdentity(data);
+                        localStorage.setItem('tpv_user_identity', JSON.stringify(data));
+                    }
+                    setIsLoading(false);
+                }, (error) => {
+                    console.error('onSnapshot customers error:', error);
+                    setIsLoading(false);
+                });
+            } else {
+                setIsLoading(false);
+            }
+        });
 
         return () => {
+            unsubAuth();
             if (unsubSnap) unsubSnap();
             clearTimeout(safetyTimeout);
         };

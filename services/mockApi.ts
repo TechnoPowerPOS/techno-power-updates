@@ -5,7 +5,7 @@ import type {
     Notification, ShippingCompany, PurchaseReturn, Transaction,
     SyncLog, InactiveCustomer, StagnantProduct, GlobalSearchResults,
     JournalEntry, Shift, UpdatePackage, Supplier, Customer, EmployeePerformanceAnalytics,
-    SatisfactionAnalytics, User, SupplierPerformanceData, DashboardAnalytics, PermissionKey, SalesHistoryData, EmployeePerformanceData, Role
+    SatisfactionAnalytics, User, SupplierPerformanceData, DashboardAnalytics, PermissionKey, SalesHistoryData, EmployeePerformanceData, Role, Category
 } from '../types';
 import { PERMISSION_KEYS } from '../permissions';
 import { getCurrentDbKey } from './branchService';
@@ -14,9 +14,8 @@ import { Money } from '../utils/mathUtils';
 
 import { 
     doc, getDoc, collection, getDocs, setDoc, updateDoc, deleteDoc,
-    writeBatch, increment, serverTimestamp, query, orderBy, limit, addDoc
-} from 'firebase/firestore';
-import { db as firestoreDb } from './firebase';
+    writeBatch, increment, serverTimestamp, query, orderBy, limit, addDoc, db as firestoreDb
+} from './localFirestore';
 import { handleFirestoreError, OperationType } from './firestoreErrorHandler';
 
 const getDbKey = () => getCurrentDbKey();
@@ -38,10 +37,25 @@ const normalizeFirestoreData = (data: any) => {
 };
 
 // Helper to update Firestore Treasury
-const syncTreasuryToFirestore = async (treasuryId: string, amount: number, isIncome: boolean) => {};
+const syncTreasuryToFirestore = async (treasuryId: string, amount: number, isIncome: boolean) => {
+    try {
+        const amt = isIncome ? amount : -amount;
+        await updateDoc(doc(firestoreDb, 'treasuries', treasuryId), {
+            balance: increment(amt)
+        });
+    } catch (e) {
+        console.warn('Failed to sync treasury balance to firestore:', e);
+    }
+};
 
 // Helper to log Firestore Transaction
-const syncTransactionToFirestore = async (transaction: any) => {};
+const syncTransactionToFirestore = async (transaction: any) => {
+    try {
+        await setDoc(doc(firestoreDb, 'transactions', transaction.id), transaction);
+    } catch (e) {
+        console.warn('Failed to sync transaction to firestore:', e);
+    }
+};
 
 // QA Auditor's Concurrency Lock
 let isDbLocked = false;
@@ -60,7 +74,7 @@ const withDbLock = async <T>(fn: () => Promise<T>): Promise<T> => {
 
 const getDb = async () => {
     const defaultDb = {
-        settings: { storeName: 'تكنو باور POS', posLayout: 'invoice', vatRate: 15, currency: 'SAR', nextInvoiceNumber: 1000, invoiceNumberPrefix: 'INV-', navigationStyle: 'grid', homeGridItems: ['dashboard', 'pos', 'products', 'sales', 'purchases', 'customers', 'treasury', 'reports', 'partners'], pinnedPages: [], dashboardVisibleCards: ['revenue', 'transactions', 'receivables', 'stock'], visiblePages: PERMISSION_KEYS, loyaltySettings: { enabled: true, earningRate: 0.1, redemptionRate: 0.5, allowCreditPoints: false }, invoiceDesign: { template: 'modern', showLogo: true, accentColor: '#4f46e5' }, enableShiftManagement: true, storePhone: '', storeAddress: '', inventorySettings: { minAlertQty: 5, allowSaleWithoutStock: false }, notificationSettings: { enabled: true, debtAlert: true, stockAlert: true, backupReminder: true, systemEvents: true, paymentDelays: true } },
+        settings: { storeName: 'تكنو باور POS', posLayout: 'invoice', vatRate: 15, currency: 'EGP', decimalPlaces: 2, socialLinks: { twitter: 'https://x.com', facebook: 'https://facebook.com', instagram: 'https://instagram.com', youtube: 'https://youtube.com', website: 'https://technopower.com' }, nextInvoiceNumber: 1000, invoiceNumberPrefix: 'INV-', navigationStyle: 'grid', homeGridItems: ['dashboard', 'pos', 'products', 'sales', 'purchases', 'customers', 'treasury', 'reports', 'partners'], pinnedPages: [], dashboardVisibleCards: ['revenue', 'transactions', 'receivables', 'stock'], visiblePages: PERMISSION_KEYS, loyaltySettings: { enabled: true, earningRate: 0.1, redemptionRate: 0.5, allowCreditPoints: false }, invoiceDesign: { template: 'modern', showLogo: true, showQrCode: true, showBarcode: true, accentColor: '#4f46e5' }, enableShiftManagement: true, storePhone: '', storeAddress: '', inventorySettings: { minAlertQty: 5, allowSaleWithoutStock: false }, notificationSettings: { enabled: true, debtAlert: true, stockAlert: true, backupReminder: true, systemEvents: true, paymentDelays: true } },
         products: [],
         customers: [{ id: 'cust-1', name: 'عميل نقدي', phone: '000', debt: 0, points: 0, tier: 'Regular', creditLimit: 0 }],
         sales: [],
@@ -70,14 +84,14 @@ const getDb = async () => {
         partnerTransactions: [],
         shippingCompanies: [],
         shippingOperations: [],
-        treasuries: [{ id: 't-1', name: 'الخزينة الرئيسية', balance: 0, currency: 'SAR', isDefault: true }],
+        treasuries: [{ id: 't-1', name: 'الخزينة الرئيسية', balance: 0, currency: 'EGP', isDefault: true }],
         warehouses: [{ id: 'w-1', name: 'المستودع الرئيسي', location: 'المقر', isDefault: true }],
         activityLogs: [],
         installments: [],
         salesReturns: [],
         purchaseReturns: [],
         users: [
-            { id: 'u-1', name: 'المدير العام', email: 'admin@techno.com', password: 'password', roleId: 'r-1', permissions: PERMISSION_KEYS.reduce((a, k) => ({...a, [k]: true}), {}) },
+            { id: 'u-1', name: 'المدير العام', password: 'password', roleId: 'r-1', permissions: PERMISSION_KEYS.reduce((a, k) => ({...a, [k]: true}), {}) },
         ],
         employees: [],
         roles: [
@@ -88,6 +102,7 @@ const getDb = async () => {
         transactions: [],
         customerTransactions: [],
         shifts: [],
+        salesDrafts: [],
         notifications: [],
         stockTransfers: [],
         journalEntries: [],
@@ -110,7 +125,19 @@ const getDb = async () => {
             parsed = stored ? JSON.parse(stored) : null;
         }
         
-        if (!parsed) parsed = defaultDb;
+        if (!parsed) {
+            parsed = defaultDb;
+        } else {
+            // Auto upgrade default currency to EGP if it was previously set to SAR
+            if (parsed.settings && parsed.settings.currency === 'SAR') {
+                parsed.settings.currency = 'EGP';
+            }
+            if (parsed.treasuries && Array.isArray(parsed.treasuries)) {
+                parsed.treasuries.forEach((t: any) => {
+                    if (t.currency === 'SAR') t.currency = 'EGP';
+                });
+            }
+        }
         if (!parsed.treasuries || !Array.isArray(parsed.treasuries) || parsed.treasuries.length === 0) parsed.treasuries = defaultDb.treasuries;
         if (!parsed.roles || !Array.isArray(parsed.roles)) parsed.roles = defaultDb.roles;
         if (!parsed.transactions || !Array.isArray(parsed.transactions)) parsed.transactions = [];
@@ -127,6 +154,23 @@ const getDb = async () => {
         if (!parsed.salesReturns || !Array.isArray(parsed.salesReturns)) parsed.salesReturns = [];
         if (!parsed.purchaseReturns || !Array.isArray(parsed.purchaseReturns)) parsed.purchaseReturns = [];
         if (!parsed.notifications || !Array.isArray(parsed.notifications)) parsed.notifications = [];
+        if (!parsed.categories || !Array.isArray(parsed.categories)) {
+            parsed.categories = [
+                { id: 'cat-1', name: 'أجهزة إلكترونية', description: 'الهواتف، الحاسبات والملحقات' },
+                { id: 'cat-2', name: 'مواد غذائية', description: 'المأكولات والمشروبات المعبأة' },
+                { id: 'cat-3', name: 'خدمات', description: 'خدمات التركيب والصيانة' }
+            ];
+        }
+        
+        // Auto cleanup expired sales drafts if retention is set
+        if (!parsed.salesDrafts || !Array.isArray(parsed.salesDrafts)) {
+            parsed.salesDrafts = [];
+        } else {
+            const maxDays = parsed.settings?.maxDraftDays || 7;
+            const cutoff = Date.now() - maxDays * 24 * 60 * 60 * 1000;
+            parsed.salesDrafts = parsed.salesDrafts.filter((d: any) => new Date(d.date).getTime() > cutoff);
+        }
+
         return parsed;
     } catch (e) { return defaultDb; }
 };
@@ -187,6 +231,11 @@ const logTransaction = (db: any, type: 'income' | 'withdrawal' | 'transfer' | 'e
 };
 
 export const api = {
+    logActivityEntry: async (action: string, details: string) => {
+        const db = await getDb();
+        logActivity(db, action, details);
+        await saveDb(db);
+    },
     getSettings: async () => (await getDb()).settings,
     saveSettings: async (s: StoreSettings) => {
         const db = (await getDb()); db.settings = s; await saveDb(db); return s;
@@ -220,6 +269,32 @@ export const api = {
         return true;
     },
     getProducts: async () => (await getDb()).products,
+    getCategories: async () => {
+        const db = await getDb();
+        return db.categories || [];
+    },
+    saveCategory: async (category: any) => {
+        const db = await getDb();
+        if (!db.categories) db.categories = [];
+        if (category.id) {
+            db.categories = db.categories.map((c: any) => c.id === category.id ? { ...c, ...category } : c);
+            logActivity(db, 'تعديل فئة', `تم تعديل الفئة: ${category.name}`);
+        } else {
+            category.id = `cat-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+            db.categories.push(category);
+            logActivity(db, 'إضافة فئة', `تم إضافة الفئة: ${category.name}`);
+        }
+        await saveDb(db);
+        return category;
+    },
+    deleteCategory: async (id: string) => {
+        const db = await getDb();
+        if (!db.categories) db.categories = [];
+        db.categories = db.categories.filter((c: any) => c.id !== id);
+        logActivity(db, 'حذف فئة', `تم حذف الفئة`);
+        await saveDb(db);
+        return true;
+    },
     saveProduct: async (p: any) => {
         const db = (await getDb());
         if (p.id) {
@@ -251,6 +326,44 @@ export const api = {
         return withDbLock(async () => {
             const db = (await getDb());
             const customer = db.customers.find((c: any) => c.id === sale.customer.id);
+
+            // Revert inventory and finances of existing sale if it exists natively
+            if (sale.id) {
+                const oldSale = db.sales.find((s: any) => s.id === sale.id);
+                if (oldSale) {
+                    for (const item of oldSale.items) {
+                        const targetProdId = item.productId || item.id;
+                        const dbProduct = db.products.find((prod: any) => prod.id === targetProdId);
+                        if (dbProduct) {
+                            const effectiveQty = item.quantity * (item.isReturn ? -1 : 1);
+                            let dbVariant = undefined;
+                            if (item.variantId && dbProduct.variants) {
+                                dbVariant = dbProduct.variants.find((v: any) => v.id === item.variantId);
+                            }
+                            if (dbVariant && dbVariant.stock !== undefined) {
+                                dbVariant.stock = Money.add(dbVariant.stock, effectiveQty);
+                                dbProduct.stock = dbProduct.variants.reduce((a: number, b: any) => Money.add(a, Number(b.stock || 0)), 0);
+                                if (!dbProduct.warehouseStocks) dbProduct.warehouseStocks = {};
+                                dbProduct.warehouseStocks[oldSale.warehouseId] = Money.add(dbProduct.warehouseStocks[oldSale.warehouseId] || 0, effectiveQty);
+                            } else {
+                                if (!dbProduct.warehouseStocks) dbProduct.warehouseStocks = {};
+                                dbProduct.warehouseStocks[oldSale.warehouseId] = Money.add(dbProduct.warehouseStocks[oldSale.warehouseId] || 0, effectiveQty);
+                                dbProduct.stock = Object.values(dbProduct.warehouseStocks as Record<string, number>).reduce((a, b) => Money.add(a, Number(b)), 0);
+                            }
+                        }
+                    }
+                    // Revert old treasury income
+                    if (oldSale.paymentMethod === 'Split' && oldSale.payments) {
+                        for (const p of oldSale.payments) {
+                            if (p.method !== 'Credit' && p.amount > 0) {
+                                logTransaction(db, 'expense', p.amount, `خصم مالي لتعديل فاتورة مبيعات مستبدلة #${oldSale.id}`, oldSale.treasuryId, 'مبيعات');
+                            }
+                        }
+                    } else if (oldSale.amountPaid > 0) {
+                        logTransaction(db, 'expense', oldSale.amountPaid, `خصم مالي لتعديل فاتورة مبيعات مستبدلة #${oldSale.id}`, oldSale.treasuryId, 'مبيعات');
+                    }
+                }
+            }
             
             // SECURITY AUDIT: Re-calculate totals from DB to prevent client-side price manipulation
             let recalculatedTotal = 0;
@@ -258,15 +371,33 @@ export const api = {
             const vatRate = db.settings.vatRate || 0;
 
             for (const item of sale.items) {
-                const dbProduct = db.products.find((prod: any) => prod.id === item.id);
+                // If the item represents a specific product ID (we use item.productId if present via PosPage)
+                const targetProdId = item.productId || item.id;
+                const dbProduct = db.products.find((prod: any) => prod.id === targetProdId);
                 if (!dbProduct) {
                     throw new Error(`المنتج ${item.name} غير موجود في النظام`);
                 }
 
+                // Identify variant if any
+                let dbVariant = undefined;
+                if (item.variantId && dbProduct.variants) {
+                    dbVariant = dbProduct.variants.find((v: any) => v.id === item.variantId);
+                }
+
+                const effectiveQty = item.quantity * (item.isReturn ? -1 : 1);
+
                 // INVENTORY AUDIT: Strict stock check
-                const currentWarehouseStock = dbProduct.warehouseStocks?.[sale.warehouseId] || 0;
-                if (!db.settings.inventorySettings?.allowSaleWithoutStock && currentWarehouseStock < item.quantity) {
-                    throw new Error(`الكمية المطلوبة من ${dbProduct.name} غير متوفرة (المتاح: ${currentWarehouseStock})`);
+                if (!item.isReturn) {
+                    if (dbVariant && dbVariant.stock !== undefined) {
+                        if (!db.settings.inventorySettings?.allowSaleWithoutStock && dbVariant.stock < item.quantity) {
+                            throw new Error(`الكمية المطلوبة من ${item.name} غير متوفرة (المتاح: ${dbVariant.stock})`);
+                        }
+                    } else {
+                        const currentWarehouseStock = dbProduct.warehouseStocks?.[sale.warehouseId] || 0;
+                        if (!db.settings.inventorySettings?.allowSaleWithoutStock && currentWarehouseStock < item.quantity) {
+                            throw new Error(`الكمية المطلوبة من ${dbProduct.name} غير متوفرة (المتاح: ${currentWarehouseStock})`);
+                        }
+                    }
                 }
 
                 // SECURITY: Use DB price instead of client-provided price
@@ -275,16 +406,24 @@ export const api = {
                 item.costPrice = dbProduct.costPrice || 0;
                 
                 // Fix: account for item.discount
-                const itemDiscountObj = item.discount || 0; 
+                const itemDiscountObj = item.discountPercent ? (effectivePrice * item.discountPercent / 100) : (item.discount || 0); 
                 const afterItemDiscount = Money.subtract(effectivePrice, itemDiscountObj);
                 
-                item.subtotal = Money.multiply(afterItemDiscount, item.quantity);
+                item.subtotal = Money.multiply(afterItemDiscount, effectiveQty);
                 recalculatedTotal = Money.add(recalculatedTotal, item.subtotal);
 
                 // Update Stocks
-                if(!dbProduct.warehouseStocks) dbProduct.warehouseStocks = {};
-                dbProduct.warehouseStocks[sale.warehouseId] = Money.subtract(dbProduct.warehouseStocks[sale.warehouseId] || 0, item.quantity);
-                dbProduct.stock = Object.values(dbProduct.warehouseStocks as Record<string, number>).reduce((a, b) => Money.add(a, Number(b)), 0);
+                if (dbVariant && dbVariant.stock !== undefined) {
+                    dbVariant.stock = Money.subtract(dbVariant.stock, effectiveQty);
+                    // Also update total product stock
+                    dbProduct.stock = dbProduct.variants.reduce((a: number, b: any) => Money.add(a, Number(b.stock || 0)), 0);
+                    if(!dbProduct.warehouseStocks) dbProduct.warehouseStocks = {};
+                    dbProduct.warehouseStocks[sale.warehouseId] = Money.subtract(dbProduct.warehouseStocks[sale.warehouseId] || 0, effectiveQty);
+                } else {
+                    if(!dbProduct.warehouseStocks) dbProduct.warehouseStocks = {};
+                    dbProduct.warehouseStocks[sale.warehouseId] = Money.subtract(dbProduct.warehouseStocks[sale.warehouseId] || 0, effectiveQty);
+                    dbProduct.stock = Object.values(dbProduct.warehouseStocks as Record<string, number>).reduce((a, b) => Money.add(a, Number(b)), 0);
+                }
             }
 
             // DISCOUNT AUDIT: Validate discount
@@ -312,7 +451,8 @@ export const api = {
             // Calculate profit (recalculatedTotal without tax - total cost)
             let totalCost = 0;
             for (const item of sale.items) {
-                totalCost = Money.add(totalCost, Money.multiply(item.costPrice || 0, item.quantity));
+                const effectiveQty = item.quantity * (item.isReturn ? -1 : 1);
+                totalCost = Money.add(totalCost, Money.multiply(item.costPrice || 0, effectiveQty));
             }
             const saleProfit = Money.subtract(recalculatedTotal, totalCost);
 
@@ -340,9 +480,18 @@ export const api = {
                 profit: saleProfit,
                 partnerProfits,
                 date: new Date().toISOString(), 
-                status: 'Completed' 
+                status: sale.status || 'Completed' 
             };
-            db.sales.unshift(finalSale);
+            
+            const existingIdx = db.sales.findIndex((s: any) => s.id === id);
+            if (existingIdx !== -1) {
+                // If it already exists natively (e.g. we are editing/resuming an invoice), replace it.
+                // Note: we should theoretically restore its old inventory before deducting new inventory, 
+                // but since it's a reservation being converted to sale, we don't restore inventory.
+                db.sales[existingIdx] = finalSale;
+            } else {
+                db.sales.unshift(finalSale);
+            }
             
             if (sale.amountPaid > 0) {
                 logTransaction(db, 'income', sale.amountPaid, `فاتورة مبيعات #${id}`, sale.treasuryId, 'مبيعات', { shiftId: sale.shiftId });
@@ -586,16 +735,91 @@ export const api = {
                 reorderLevel: p.reorderLevel || 0
             }));
 
+        const totalSalesToday = todaysSales.reduce((a: number, b: any) => a + b.total, 0);
+        
+        // Calculate Yesterday to find trends
+        const yesterdayDate = new Date(new Date(today).getTime() - 86400000).toISOString().split('T')[0];
+        const yesterdaySalesList = db.sales.filter((s: any) => s.date.startsWith(yesterdayDate));
+        
+        const yesterdaySales = yesterdaySalesList.reduce((a: number, b: any) => a + b.total, 0);
+        const yesterdayTransactions = yesterdaySalesList.length;
+
+        // Calculate Profits
+        const calculateProfit = (salesList: any[]) => {
+            return salesList.reduce((acc: number, s: any) => {
+                let cost = 0;
+                s.items.forEach((item: any) => {
+                    cost += (item.costPrice || 0) * (item.quantity || 1);
+                });
+                return acc + (s.total - cost);
+            }, 0);
+        };
+        const profitsMonth = calculateProfit(monthSales);
+        const prevMonthDate = new Date(new Date(today).getTime() - 30 * 86400000).toISOString().split('T')[0].substring(0, 7);
+        const prevMonthSales = db.sales.filter((s: any) => s.date.startsWith(prevMonthDate));
+        const profitsPrevMonth = calculateProfit(prevMonthSales);
+        const prevMonthTotalSales = prevMonthSales.reduce((a: number, b: any) => a + b.total, 0);
+        const thisMonthTotalSales = monthSales.reduce((a: number, b: any) => a + b.total, 0);
+
+        const calcTrend = (current: number, prev: number) => {
+            if (prev === 0) return { percentage: current > 0 ? 100 : 0, isUp: current >= 0 };
+            const diff = current - prev;
+            return {
+                percentage: Math.min(Math.abs(Math.round((diff / prev) * 100)), 999), 
+                isUp: diff >= 0
+            };
+        };
+
+        const revenueTrend = calcTrend(totalSalesToday, yesterdaySales);
+        const transactionsTrend = calcTrend(todaysSales.length, yesterdayTransactions);
+        const profitTrend = calcTrend(profitsMonth, profitsPrevMonth);
+        const monthlyRevenueTrend = calcTrend(thisMonthTotalSales, prevMonthTotalSales);
+        const receivablesTrend = calcTrend(db.customers.reduce((a: number, b: any) => a + (b.debt || 0), 0), 0); // No history for debt size easily without snapshots, so just 0
+
+        let last7DaysTotalSales = 0;
+        const nowMs = new Date(today).getTime();
+        for(let i=1; i<=7; i++) {
+            const d = new Date(nowMs - i * 86400000).toISOString().split('T')[0];
+            const dSales = db.sales.filter((s: any) => s.date.startsWith(d));
+            last7DaysTotalSales += dSales.reduce((a: number, b: any) => a + b.total, 0);
+        }
+        const lastWeekAverage = last7DaysTotalSales / 7;
+        const percentageChange = lastWeekAverage > 0 ? Math.round(((totalSalesToday - lastWeekAverage) / lastWeekAverage) * 100) : 0;
+
         return {
-            totalSalesToday: todaysSales.reduce((a: number, b: any) => a + b.total, 0),
+            totalSalesToday,
             totalSalesThisMonth: monthSales.reduce((a: number, b: any) => a + b.total, 0),
             todaysTransactions: todaysSales.length,
+            totalInvoices: db.sales.length,
+            totalConfirmedOrders: db.sales.filter((s: any) => s.status === 'Completed' || s.status === 'Confirmed').length,
+            totalPendingOrders: db.sales.filter((s: any) => s.status === 'Draft' || s.status === 'PendingReview').length,
+            totalReturns: db.returns?.length || 0,
             totalReceivables: db.customers.reduce((a: number, b: any) => a + (b.debt || 0), 0),
             totalStockValue: db.products.reduce((a: number, p: any) => a + ((p.stock || 0) * (p.costPrice || 0)), 0),
+            totalStockAlerts: db.products.filter((p: any) => (p.stock || 0) <= (p.reorderLevel || 0)).length,
             monthlySales: Object.entries(last6Months).map(([name, sales]) => ({ name, sales })).sort((a,b) => a.name.localeCompare(b.name)),
             salesByCategory: Object.entries(catMap).map(([name, value]) => ({ name, value })),
             topProducts: Object.values(productRevenue).sort((a, b) => b.totalRevenue - a.totalRevenue),
-            stockAlerts
+            stockAlerts,
+            totalProfits: profitsMonth,
+            trends: {
+                revenuePercentage: revenueTrend.percentage,
+                revenueIsUp: revenueTrend.isUp,
+                transactionsPercentage: transactionsTrend.percentage,
+                transactionsIsUp: transactionsTrend.isUp,
+                monthlyRevenuePercentage: monthlyRevenueTrend.percentage,
+                monthlyRevenueIsUp: monthlyRevenueTrend.isUp,
+                profitPercentage: profitTrend.percentage,
+                profitIsUp: profitTrend.isUp,
+                receivablesPercentage: 0,
+                receivablesIsUp: true
+            },
+            dailyKPI: {
+                todaySales: totalSalesToday,
+                lastWeekAverage,
+                percentageChange: Math.abs(percentageChange),
+                isUp: percentageChange >= 0
+            }
         };
     },
     getCustomers: async () => {
@@ -605,7 +829,7 @@ export const api = {
         const valid = (db.customers || []).filter((c:any) => {
             if (c.id?.startsWith('UID-')) return false;
             // Indicators of SaaS users mixed in:
-            if (c.registeredAt || c.planId || c.licenseKey || c.type === 'Trial' || c.deviceId || c.maxDevices || c.email === 'm7mdshipl@gmail.com') return false;
+            if (c.registeredAt || c.planId || c.licenseKey || c.type === 'Trial' || c.deviceId || c.maxDevices) return false;
             return true;
         });
         if (valid.length !== (db.customers || []).length) {
@@ -619,7 +843,47 @@ export const api = {
     },
     getCustomerTransactions: async () => (await getDb()).customerTransactions || [],
     getSupplierTransactions: async () => (await getDb()).supplierTransactions || [],
-    getSales: async () => (await getDb()).sales,
+    getSales: async () => {
+        return withDbLock(async () => {
+            const db = await getDb();
+            let changed = false;
+            const now = new Date();
+            const validSales = [];
+            for (const s of db.sales || []) {
+                if (s.status === 'Reservation' && s.reservationExpiryDate && new Date(s.reservationExpiryDate) < now) {
+                    changed = true;
+                    // return stock
+                    s.items.forEach((item: any) => {
+                        const targetProdId = item.productId || item.id;
+                        const dbProduct = db.products.find((prod: any) => prod.id === targetProdId);
+                        if (dbProduct) {
+                            const effectiveQty = item.quantity;
+                            let dbVariant = undefined;
+                            if (item.variantId && dbProduct.variants) {
+                                dbVariant = dbProduct.variants.find((v: any) => v.id === item.variantId);
+                            }
+                            if (dbVariant && dbVariant.stock !== undefined) {
+                                dbVariant.stock = Money.add(dbVariant.stock || 0, effectiveQty);
+                                dbProduct.stock = dbProduct.variants.reduce((a: number, b: any) => Money.add(a, Number(b.stock || 0)), 0);
+                            } else {
+                                if (!dbProduct.warehouseStocks) dbProduct.warehouseStocks = {};
+                                dbProduct.warehouseStocks[s.warehouseId] = Money.add(dbProduct.warehouseStocks[s.warehouseId] || 0, effectiveQty);
+                                dbProduct.stock = Object.values(dbProduct.warehouseStocks as Record<string, number>).reduce((a, b) => Money.add(a, Number(b)), 0);
+                            }
+                        }
+                    });
+                    logActivity(db, 'إلغاء حجز', `تم إلغاء الحجز التلقائي للفاتورة #${s.id} لانتهاء المدة.`);
+                } else {
+                    validSales.push(s);
+                }
+            }
+            if (changed) {
+                db.sales = validSales;
+                await saveDb(db);
+            }
+            return validSales;
+        });
+    },
     getPurchases: async () => (await getDb()).purchases,
     getWarehouses: async () => (await getDb()).warehouses,
     saveTreasury: async (t: any) => {
@@ -747,6 +1011,10 @@ export const api = {
         return t; 
     },
     getCurrentShift: async (userId: string) => (await getDb()).shifts.find((s: any) => s.userId === userId && s.status === 'Open') || null,
+    getShifts: async () => {
+        const db = (await getDb());
+        return db.shifts || [];
+    },
     openShift: async (userId: string, amount: number) => {
         const db = (await getDb());
         const shift = { id: `shift-${Date.now()}`, userId, startTime: new Date().toISOString(), startCash: amount, status: 'Open' };
@@ -758,11 +1026,50 @@ export const api = {
     closeShift: async (id: string, endCash: number, notes?: string) => {
         const db = (await getDb()); const shift = db.shifts.find((s: any) => s.id === id);
         if (shift) {
-            shift.status = 'Closed'; shift.endTime = new Date().toISOString(); shift.endCash = endCash; shift.notes = notes;
+            const shiftSales = db.sales.filter((s: any) => s.shiftId === id);
+            shift.status = 'Closed'; 
+            shift.endTime = new Date().toISOString(); 
+            shift.endCash = endCash; 
+            shift.notes = notes;
+            shift.totalSales = shiftSales.reduce((sum: number, s: any) => sum + s.total, 0);
+            shift.totalCashSales = shiftSales.reduce((sum: number, s: any) => sum + (s.amountPaid || s.total), 0);
             logActivity(db, 'إغلاق وردية', `تم إغلاق الوردية #${id} برصيد نهائي ${endCash}`);
             await saveDb(db); return shift;
         }
         throw new Error("Shift not found");
+    },
+    getSalesDrafts: async () => {
+        const db = (await getDb());
+        return db.salesDrafts || [];
+    },
+    saveSalesDraft: async (draft: any) => {
+        const db = (await getDb());
+        if (!db.salesDrafts) db.salesDrafts = [];
+        const isNew = !draft.id;
+        const newDraft = {
+            ...draft,
+            id: draft.id || `draft-${Date.now()}`,
+            date: draft.date || new Date().toISOString()
+        };
+        if (isNew) {
+            db.salesDrafts.unshift(newDraft);
+        } else {
+            const index = db.salesDrafts.findIndex((d: any) => d.id === draft.id);
+            if (index !== -1) {
+                db.salesDrafts[index] = newDraft;
+            } else {
+                db.salesDrafts.unshift(newDraft);
+            }
+        }
+        await saveDb(db);
+        return newDraft;
+    },
+    deleteSalesDraft: async (id: string) => {
+        const db = (await getDb());
+        if (!db.salesDrafts) db.salesDrafts = [];
+        db.salesDrafts = db.salesDrafts.filter((d: any) => d.id !== id);
+        await saveDb(db);
+        return true;
     },
     getPartners: async () => {
         const db = (await getDb());
@@ -1228,6 +1535,19 @@ export const api = {
             return role;
         });
     },
+    deleteRole: async (id: string) => {
+        return withDbLock(async () => {
+            const db = (await getDb());
+            // Check if any user is using this role
+            const userWithRole = db.users.find((u: any) => u.roleId === id);
+            if (userWithRole) {
+                throw new Error('لا يمكن حذف الدور لأنه مرتبط بمستخدمين حاليين');
+            }
+            db.roles = db.roles.filter((r: any) => r.id !== id);
+            await saveDb(db);
+            return true;
+        });
+    },
     login: async (n: string, p: string) => (await getDb()).users.find((u: any) => u.name === n && u.password === p) || null,
     verifyPassword: async (uid: string, p: string) => (await getDb()).users.find((u:any)=>u.id===uid)?.password === p,
     wipeBusinessData: async () => { 
@@ -1258,6 +1578,27 @@ export const api = {
         });
     },
     getBackupData: async () => JSON.stringify(await getDb()),
+    restoreBackupData: async (jsonString: string) => {
+        return withDbLock(async () => {
+            try {
+                const parsed = JSON.parse(jsonString);
+                if (!parsed || (typeof parsed !== 'object')) {
+                    throw new Error('الملف ليس ملف قاعدة بيانات صالح');
+                }
+                const db = (await getDb());
+                const keys = Object.keys(parsed);
+                for (const key of keys) {
+                    (db as any)[key] = parsed[key];
+                }
+                logActivity(db, 'استعادة قاعدة البيانات', 'تم استيراد نسخة احتياطية كاملة بنجاح');
+                await saveDb(db);
+                return true;
+            } catch (error: any) {
+                console.error('Error during data restore:', error);
+                throw new Error(error?.message || 'فشل في استعادة البيانات');
+            }
+        });
+    },
     reset: async () => { 
         if (typeof window !== 'undefined' && 'electronAPI' in window) {
             await (window as any).electronAPI.secureSave(getDbKey(), null);
@@ -1449,8 +1790,8 @@ export const api = {
         const treasury = db.treasuries.find((t: any) => t.id === tr.treasuryId);
         if (treasury) {
             // Revert balance
-            if (tr.type === 'income') treasury.balance -= tr.amount;
-            else treasury.balance += tr.amount;
+            if (tr.type === 'income') treasury.balance -= Number(tr.amount) || 0;
+            else treasury.balance += Number(tr.amount) || 0;
         }
 
         db.transactions = db.transactions.filter((t: any) => t.id !== id);
@@ -1605,6 +1946,15 @@ export const api = {
             logActivity(db, 'إدارة المستخدمين', `حفظ بيانات المستخدم: ${u.name}`);
             await saveDb(db);
             return u;
+        });
+    },
+    deleteUser: async (id: string) => {
+        return withDbLock(async () => {
+            const db = (await getDb());
+            db.users = db.users.filter((u: any) => u.id !== id);
+            logActivity(db, 'إدارة المستخدمين', `تم حذف مستخدم`);
+            await saveDb(db);
+            return true;
         });
     },
     saveStockTransfer: async (st: any) => {
@@ -1769,7 +2119,46 @@ export const api = {
         await saveDb(db);
         return true;
     },
-    getSyncLogs: async () => [], getQueueCount: async () => 0, processQueue: async () => {}, setOnlineStatus: (o: boolean) => {}, getSatisfactionAnalytics: async () => ({ happy: 0, neutral: 0, unhappy: 0, total: 0 }), getSalesHistoryForForecast: async () => [], getSupplierPerformanceData: async () => [], getInactiveCustomers: async (d: number) => [], getStagnantProducts: async (d: number) => [], updateSystemVersion: async (v: string, p: any) => {}, getJournalEntries: async () => [],
+    getSyncLogs: async () => [], getQueueCount: async () => 0, processQueue: async () => {}, setOnlineStatus: (o: boolean) => {}, getSatisfactionAnalytics: async () => ({ happy: 0, neutral: 0, unhappy: 0, total: 0 }), getSalesHistoryForForecast: async () => [], getSupplierPerformanceData: async () => [], getInactiveCustomers: async (d: number) => [], 
+    getStagnantProducts: async (d: number) => {
+        const db = (await getDb());
+        const now = new Date();
+        const stagnant: any[] = [];
+        const products = db.products || [];
+        const sales = db.sales || [];
+        
+        products.forEach((p: any) => {
+            const productSales = sales.filter((s: any) => 
+                s.status === 'Completed' && 
+                s.items.some((item: any) => item.id === p.id)
+            );
+            
+            let lastSoldDate: string | undefined = undefined;
+            let daysSinceLastSale = 999;
+            
+            if (productSales.length > 0) {
+                const latestSale = productSales.reduce((latest: any, current: any) => {
+                    return new Date(current.date) > new Date(latest.date) ? current : latest;
+                });
+                lastSoldDate = latestSale.date;
+                const diffTime = Math.abs(now.getTime() - new Date(lastSoldDate!).getTime());
+                daysSinceLastSale = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            }
+            
+            if (daysSinceLastSale >= d) {
+                stagnant.push({
+                    id: p.id,
+                    name: p.name,
+                    stock: p.stock || 0,
+                    lastSoldDate,
+                    daysSinceLastSale
+                });
+            }
+        });
+        
+        return stagnant;
+    },
+    updateSystemVersion: async (v: string, p: any) => {}, getJournalEntries: async () => [],
     getWhatsAppTemplates: async () => {
         const db = (await getDb());
         if (!db.whatsappTemplates || db.whatsappTemplates.length === 0) {
@@ -1801,7 +2190,35 @@ export const api = {
         logActivity(db, 'إعدادات واتساب', `تم حذف قالب رسالة`);
         await saveDb(db); return true;
     },
-    getWhatsAppLogs: async () => (await getDb()).whatsappLogs || [],
+    getOffers: async () => {
+        const db = (await getDb());
+        return db.offers || [];
+    },
+    saveOffer: async (offer: any) => {
+        return withDbLock(async () => {
+            const db = (await getDb());
+            if (!db.offers) db.offers = [];
+            if (offer.id) {
+                db.offers = db.offers.map((o: any) => o.id === offer.id ? { ...o, ...offer } : o);
+            } else {
+                offer.id = `offer-${Date.now()}`;
+                db.offers.push(offer);
+            }
+            logActivity(db, 'العروض', `تم ${offer.id ? 'تحديث' : 'إضافة'} عرض`);
+            await saveDb(db);
+            return offer;
+        });
+    },
+    deleteOffer: async (id: string) => {
+        return withDbLock(async () => {
+            const db = (await getDb());
+            if (!db.offers) return false;
+            db.offers = db.offers.filter((o: any) => o.id !== id);
+            logActivity(db, 'العروض', `تم حذف عرض`);
+            await saveDb(db);
+            return true;
+        });
+    },
     logWhatsAppMessage: async (log: any) => {
         const db = (await getDb());
         if (!db.whatsappLogs) db.whatsappLogs = [];

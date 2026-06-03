@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { collection, query, getDocs, orderBy, limit, writeBatch, doc, deleteDoc, updateDoc, serverTimestamp, where, increment } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { collection, query, getDocs, orderBy, limit, writeBatch, doc, deleteDoc, updateDoc, serverTimestamp, where, increment } from '../../services/localFirestore';
+import { db  } from '../../services/localFirestore';
 import { api } from '../../services/mockApi';
 import { handleFirestoreError, OperationType } from '../../services/firestoreErrorHandler';
 import { useToasts } from '../../hooks/useToasts';
@@ -123,7 +123,7 @@ const PayrollPage: React.FC = () => {
             batch.update(treasuryRef, { balance: increment(-selectedSal.netSalary) });
 
             // 2. Create Treasury Transaction
-            const transRef = doc(collection(db, 'treasury_transactions'));
+            const transRef = doc(collection(db, 'transactions'));
             batch.set(transRef, {
                 treasuryId: selectedTreasuryId,
                 type: 'Expense',

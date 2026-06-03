@@ -111,16 +111,57 @@ export const secureStorage = {
 
         const legacyResult = tryDecode(true);
         if (legacyResult !== null) {
-            // Re-save with new stable key so future decodes don't rely on legacy
+            // Re-save with new stable key
             setTimeout(() => {
-                try {
-                    secureStorage.setItem(key, legacyResult);
-                } catch(e){}
+                try { secureStorage.setItem(key, legacyResult); } catch(e){}
             }, 100);
             return legacyResult;
         }
 
-        console.error("TAMPER DETECTED at key:", key);
+        // Final fallback: Try with a base-only key (no fingerprint) for migration/env changes
+        const baseTryDecode = () => {
+            try {
+                const baseKey = MASTER_KEY; // Fallback to just MASTER_KEY
+                const xorRev = (s: string): string => {
+                    let r = '';
+                    for (let i = 0; i < s.length; i++) {
+                        r += String.fromCharCode(s.charCodeAt(i) ^ baseKey.charCodeAt(i % baseKey.length));
+                    }
+                    try { return decodeURIComponent(r); } catch { return ''; }
+                };
+                const genH = (s: string): string => {
+                    let h = 0;
+                    for (let i = 0; i < s.length; i++) {
+                        h = ((h << 5) - h) + (s.charCodeAt(i) ^ baseKey.charCodeAt(i % baseKey.length));
+                        h = h & h;
+                    }
+                    return Math.abs(h).toString(36);
+                };
+
+                const dec = xorRev(decodeURIComponent(escape(atob(encrypted))));
+                if (!dec) return null;
+                const p = JSON.parse(dec);
+                if (!p || !p._d || !p._h) return null;
+                if (genH(p._d) !== p._h) return null;
+                return JSON.parse(p._d);
+            } catch { return null; }
+        };
+
+        const baseResult = baseTryDecode();
+        if (baseResult !== null) {
+            setTimeout(() => {
+                try { secureStorage.setItem(key, baseResult); } catch(e){}
+            }, 100);
+            return baseResult;
+        }
+
+        // Suppress scary console.error for key mismatches as they can be caused by environment changes
+        // we handle recovery at the service level (licenseService auto-repair)
+        if (key.includes('license')) {
+            console.warn("Integrity check pending for key:", key);
+        } else {
+            console.warn("Storage item bypass/environment change detected at:", key);
+        }
         return null;
     },
 

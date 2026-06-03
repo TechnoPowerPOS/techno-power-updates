@@ -31,9 +31,7 @@ const LicenseActivationModal: React.FC<LicenseActivationModalProps> = ({ isOpen,
         const result = await activateLicense(licenseKey, referralCode);
         
         if (result.success) {
-            // WIPE DEMO DATA ON ACTIVATION
-            await api.wipeBusinessData();
-            addToast('تم تفعيل الترخيص ومسح البيانات التجريبية. يمكنك البدء بإضافة بياناتك الحقيقية.', 'success');
+            addToast('تم تفعيل الترخيص بنجاح! سيتم الحفاظ على كافة بياناتك الحالية بأمان وتطبيق الميزات الجديدة.', 'success');
 
             if (result.type === 'Yearly') {
                 setIsLoading(false);
@@ -110,7 +108,7 @@ const LicenseActivationModal: React.FC<LicenseActivationModalProps> = ({ isOpen,
         <p className="text-gray-600 dark:text-gray-400">
           يرجى إدخال كود الترخيص الذي حصلت عليه لتفعيل نسختك الكاملة من البرنامج.
           <br/>
-          <span className="text-xs text-red-500 font-bold">ملاحظة: سيتم مسح البيانات التجريبية تلقائياً عند التفعيل لبدء استخدام نظيف.</span>
+          <span className="text-xs text-emerald-600 font-bold">ملاحظة: تفعيل الترخيص آمن تماماً، وسيتم الاحتفاظ بكافة فواتيرك ومنتجاتك وبياناتك التشغيلية دون تصفير.</span>
         </p>
         <div>
           <label htmlFor="licenseKey" className="block text-sm font-medium text-gray-700 dark:text-gray-300">

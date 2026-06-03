@@ -61,5 +61,18 @@ export const hardwareService = {
                 silent: true
             });
         }
+    },
+
+    async getPartitions(): Promise<string[]> {
+        if (!isElectron()) {
+            return ['C:\\', 'D:\\', 'E:\\', 'F:\\'];
+        }
+        try {
+            // @ts-ignore
+            return await window.electronAPI.getPartitions();
+        } catch (error) {
+            console.error("HardwareService: Error getting partitions", error);
+            return ['C:\\', 'D:\\', 'E:\\'];
+        }
     }
 };

@@ -49,7 +49,9 @@ export const useAppGuard = () => {
                 if (data.isBlocked !== undefined) {
                     setIsBlocked(data.isBlocked);
                     if (data.isBlocked) {
-                        setBlockMessage('تم حظر هذا الجهاز من قبل الإدارة. يرجى مراجعة الدعم الفني.');
+                        setBlockMessage(data.blockMessage || 'تم حظر هذا الجهاز من قبل الإدارة. يرجى مراجعة الدعم الفني.');
+                    } else {
+                        setBlockMessage('');
                     }
                 }
                 
@@ -108,7 +110,8 @@ export const useAppGuard = () => {
         // حماية الذاكرة (Memory Protection)
         const originalSetItem = localStorage.setItem;
         localStorage.setItem = function(key, value) {
-            if (key.includes('license') && typeof value === 'string' && !value.includes('_sys_') && key !== 'tp_license_key') {
+            const isLicenseKey = key === 'tp_license_key' || key.startsWith('tp_license_key_');
+            if (key.includes('license') && typeof value === 'string' && !value.includes('_sys_') && !isLicenseKey) {
                 // منع التلاعب الخارجي بالترخيص
                 return;
             }

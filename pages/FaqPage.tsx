@@ -18,7 +18,8 @@ import {
     Users,
     Key,
     Activity,
-    Lock
+    Lock,
+    Mail
 } from 'lucide-react';
 
 interface AccordionItemProps {
@@ -183,14 +184,23 @@ const FaqPage: React.FC = () => {
                         <p className="text-slate-500 dark:text-slate-400 font-bold mb-6 leading-relaxed">
                             فريق الدعم الفني متواجد لمساعدتك في أي وقت عبر واتساب.
                         </p>
-                        <a 
-                            href="https://wa.me/201020246503" 
-                            target="_blank" 
-                            rel="noreferrer" 
-                            className="flex items-center justify-center gap-3 w-full py-4 bg-green-600 text-white rounded-2xl font-black shadow-lg shadow-green-500/20 hover:bg-green-700 transition-all active:scale-95"
-                        >
-                            تواصل معنا الآن
-                        </a>
+                        <div className="flex flex-col gap-3">
+                            <a 
+                                href="mailto:support@technopower.store" 
+                                className="flex items-center justify-center gap-3 w-full py-4 bg-blue-600 text-white rounded-2xl font-black shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all active:scale-95"
+                            >
+                                <Mail size={20} />
+                                support@technopower.store
+                            </a>
+                            <a 
+                                href="https://wa.me/201020246503" 
+                                target="_blank" 
+                                rel="noreferrer" 
+                                className="flex items-center justify-center gap-3 w-full py-4 bg-green-600 text-white rounded-2xl font-black shadow-lg shadow-green-500/20 hover:bg-green-700 transition-all active:scale-95"
+                            >
+                                تواصل معنا الآن
+                            </a>
+                        </div>
                     </div>
 
                     <div className="p-8 bg-indigo-600 rounded-[32px] shadow-xl text-white relative overflow-hidden group">

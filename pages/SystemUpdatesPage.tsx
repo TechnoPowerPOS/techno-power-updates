@@ -36,7 +36,7 @@ const SystemUpdatesPage: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-8">
                     {changelogData.map((entry: any, idx: number) => (
-                        <Card key={entry.version} className="relative overflow-hidden group">
+                        <Card key={`${entry.version}-${idx}`} className="relative overflow-hidden group">
                             {idx === 0 && (
                                 <div className="absolute top-4 left-[-30px] bg-indigo-600 text-white text-[10px] font-black px-10 py-1 rotate-[-45deg] shadow-lg">
                                     الأحدث

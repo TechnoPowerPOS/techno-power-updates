@@ -9,13 +9,16 @@ import Modal from '../components/ui/Modal';
 import { useToasts } from '../hooks/useToasts';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import { api } from '../services/mockApi';
+import { getUserIdentity } from '../services/licenseService';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '../services/firebase';
 
 const LicensePage: React.FC = () => {
   const [licenseKey, setLicenseKey] = useState('');
   const [referralCode, setReferralCode] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { activateLicense, activateTrial, activateFreePlan, deviceId, status } = useLicense();
+  const { activateLicense, activateTrial, activateFreePlan, deviceId, status, verify } = useLicense();
   const { enableDevMode } = useDevMode();
   const { t } = useTranslation();
   const [trialUsed, setTrialUsed] = useState(false);
@@ -26,11 +29,45 @@ const LicensePage: React.FC = () => {
   const [showFreeConfirm, setShowFreeConfirm] = useState(false);
 
   useEffect(() => {
-      const isUsed = localStorage.getItem('tp_trial_ever_used');
-      if (isUsed) {
-          setTrialUsed(true);
-      }
-  }, []);
+      const checkTrialEverUsed = async () => {
+          // Check local storage quick cache first
+          const localUsed = localStorage.getItem('tp_trial_ever_used');
+          if (localUsed === 'true') {
+              setTrialUsed(true);
+              return;
+          }
+
+          if (!deviceId) return;
+
+          try {
+              // 1. Check if trials document exists for this deviceId
+              const trialSnap = await getDoc(doc(db, 'trials', deviceId));
+              if (trialSnap.exists()) {
+                  setTrialUsed(true);
+                  localStorage.setItem('tp_trial_ever_used', 'true');
+                  return;
+              }
+
+              // 2. Check if trials database contains any document with current customerId
+              const identity = getUserIdentity();
+              if (identity?.id) {
+                  const q = query(collection(db, 'trials'), where('customerId', '==', identity.id));
+                  const trialQuerySnap = await getDocs(q);
+                  if (!trialQuerySnap.empty) {
+                      setTrialUsed(true);
+                      localStorage.setItem('tp_trial_ever_used', 'true');
+                      return;
+                  }
+              }
+
+              setTrialUsed(false);
+          } catch (e) {
+              console.warn("Dynamic trial checks failed", e);
+          }
+      };
+
+      checkTrialEverUsed();
+  }, [deviceId]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,10 +121,14 @@ const LicensePage: React.FC = () => {
       setIsLoading(true);
       setShowFreeConfirm(false);
       try {
-          await api.wipeBusinessData();
-          await activateFreePlan();
-          addToast('تم تفعيل الخطة المجانية بنجاح.', 'success');
-          setTimeout(() => navigate('/'), 500);
+          const res = await activateFreePlan();
+          if (res.success) {
+              addToast(res.message, 'success');
+              setTimeout(() => navigate('/'), 500);
+          } else {
+              addToast(res.message, 'error');
+              setIsLoading(false);
+          }
       } catch (e) {
           addToast('فشل تفعيل الخطة المجانية.', 'error');
           setIsLoading(false);
@@ -105,7 +146,25 @@ const LicensePage: React.FC = () => {
             title: t('security.tampering_detected_title'), 
             text: t('security.tampering_detected_text'), 
             icon: <ShieldAlert className="text-red-500 animate-pulse" size={40}/>,
-            color: "text-red-600"
+            color: "text-red-600",
+            action: (
+                <Button 
+                    onClick={async () => {
+                        setIsLoading(true);
+                        try {
+                            await verify();
+                            addToast('تمت إعادة التحقق بنجاح', 'success');
+                        } finally {
+                            setIsLoading(false);
+                        }
+                    }} 
+                    variant="primary" 
+                    className="mt-6 bg-rose-600 hover:bg-rose-700 h-12 px-8 rounded-2xl font-black shadow-lg shadow-rose-500/20"
+                    isLoading={isLoading}
+                >
+                    إعادة محاولة التحقق الآن
+                </Button>
+            )
         };
     }
 
@@ -147,6 +206,7 @@ const LicensePage: React.FC = () => {
           <p className="text-slate-500 dark:text-slate-400 text-lg font-medium max-w-2xl mx-auto">
             {text}
           </p>
+          {(getMessage() as any).action}
         </header>
 
         {/* Bento Grid Layout */}
@@ -351,7 +411,7 @@ const LicensePage: React.FC = () => {
           onClose={() => setShowFreeConfirm(false)} 
           onConfirm={handleActivateFree}
           title="تنشيط الخطة المجانية"
-          message="هل أنت متأكد من الانتقال للخطة المجانية؟ سيتم مسح كافة البيانات التجريبية الحالية لتهيئة قاعدة البيانات الجديدة بما يتناسب مع حدود الخطة."
+          message="هل أنت متأكد من الانتقال للخطة المجانية؟ سيتم الحفاظ على كافة البيانات الحالية ولن يتم تصفير البرنامج."
           confirmText="نعم، موافق ومتابعة"
           cancelText="تراجع"
           isLoading={isLoading}

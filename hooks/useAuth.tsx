@@ -14,7 +14,7 @@ interface AuthContextType {
   login: (name: string, password: string) => Promise<void>;
   logout: () => void;
   switchUser: () => void;
-  userHasPermission: (permission: PermissionKey) => boolean;
+  userHasPermission: (permission: PermissionKey | PermissionKey[]) => boolean;
   isLoading: boolean;
   isLocked: boolean;
   lockSession: () => void;
@@ -33,6 +33,61 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const { settings } = useSettings();
   const { isDevMode, disableDevMode } = useDevMode();
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const logout = async () => {
+    await auth.signOut();
+    setUser(null);
+    setIsLocked(false);
+    secureStorage.removeItem(AUTH_STORAGE_KEY);
+    disableDevMode(); 
+  };
+
+  const login = async (name: string, password: string) => {
+    const loggedInUser = await api.login(name, password);
+    if (loggedInUser) {
+      // Try to sign into Firebase Auth if possible
+      try {
+        await signInAnonymously(auth);
+      } catch (e) {
+        console.warn("Firebase Login Sync failed", e);
+      }
+      
+      setUser(loggedInUser);
+      secureStorage.setItem(AUTH_STORAGE_KEY, loggedInUser);
+    } else {
+      throw new Error('Invalid credentials');
+    }
+  };
+
+  const switchUser = () => {
+    setUser(null);
+    setIsLocked(false);
+    secureStorage.removeItem(AUTH_STORAGE_KEY);
+    api.reset();
+    disableDevMode(); 
+  };
+
+  // Sync user state with local database when it changes (role/permission updates)
+  useEffect(() => {
+    const handleStorageUpdate = async () => {
+      if (!user) return;
+      const allUsers = (await api.getUsers()) as User[];
+      const latestUser = allUsers.find(u => u.id === user.id);
+      if (latestUser) {
+        // Only update if there's a difference to avoid infinite loops
+        if (JSON.stringify(latestUser.permissions) !== JSON.stringify(user.permissions)) {
+          setUser(latestUser);
+          secureStorage.setItem(AUTH_STORAGE_KEY, latestUser);
+        }
+      } else {
+        // User was deleted
+        logout();
+      }
+    };
+
+    window.addEventListener('storage_updated', handleStorageUpdate);
+    return () => window.removeEventListener('storage_updated', handleStorageUpdate);
+  }, [user, logout]);
 
   useEffect(() => {
     let fired = false;
@@ -64,45 +119,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     syncFirebaseAuth();
   }, [user]);
 
-  const login = async (name: string, password: string) => {
-    const loggedInUser = await api.login(name, password);
-    if (loggedInUser) {
-      // Try to sign into Firebase Auth if possible
-      try {
-        await signInAnonymously(auth);
-      } catch (e) {
-        console.warn("Firebase Login Sync failed", e);
-      }
-      
-      setUser(loggedInUser);
-      secureStorage.setItem(AUTH_STORAGE_KEY, loggedInUser);
-    } else {
-      throw new Error('Invalid credentials');
-    }
-  };
-
-  const logout = async () => {
-    await auth.signOut();
-    setUser(null);
-    setIsLocked(false);
-    secureStorage.removeItem(AUTH_STORAGE_KEY);
-    disableDevMode(); 
-  };
-  
-  const switchUser = () => {
-    setUser(null);
-    setIsLocked(false);
-    secureStorage.removeItem(AUTH_STORAGE_KEY);
-    api.reset();
-    disableDevMode(); 
-  };
-
-  const userHasPermission = (permission: PermissionKey): boolean => {
+  const userHasPermission = (permission: PermissionKey | PermissionKey[]): boolean => {
       if (isDevMode) return true;
       if (!user) return false;
-      if (user.email === 'm7mdshipl@gmail.com' || user.email === 'admin@techno.com') return true;
+      
+      // Check if user is the main administrator (role r-1)
+      if (user.roleId === 'r-1') return true;
 
       if (!user.permissions) return false;
+
+      if (Array.isArray(permission)) {
+          return permission.some(p => user.permissions![p] === true);
+      }
+
       return user.permissions[permission] === true;
   };
 

@@ -16,6 +16,33 @@ import {
 import { useToasts } from '../hooks/useToasts';
 import TableSkeleton from '../components/ui/TableSkeleton';
 
+const StatCard: React.FC<{ 
+    title: string; 
+    value: string; 
+    icon: React.ReactNode, 
+    bgColor: string, 
+    iconColor: string, 
+    delay: number 
+  }> = ({ title, value, icon, bgColor, iconColor, delay }) => (
+    <Card className={`p-6 overflow-hidden animate-slide-up group border border-slate-100 dark:border-slate-800/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-500 relative bg-white dark:bg-slate-900 rounded-[2.5rem]`} style={{ animationDelay: `${delay}ms`}}>
+      <div className={`absolute top-0 right-0 w-32 h-32 ${bgColor} rounded-full blur-[3.5rem] opacity-20 -translate-y-1/2 translate-x-1/2 group-hover:scale-150 transition-transform duration-700`}></div>
+      <div className="flex items-start justify-between relative z-10 h-full">
+          <div className="flex flex-col h-full justify-between">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3 flex items-center gap-1.5">
+                  <span className={`w-1 h-1 rounded-full ${iconColor.replace('text-', 'bg-')}`}></span>
+                  {title}
+                </p>
+                <p className="text-3xl font-black text-slate-800 dark:text-white leading-tight tracking-tight drop-shadow-sm">{value}</p>
+              </div>
+          </div>
+          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${bgColor} ${iconColor} shadow-inner group-hover:rotate-6 group-hover:scale-110 transition-all duration-300`}>
+              {icon}
+          </div>
+      </div>
+    </Card>
+  );
+
 const CrmPage: React.FC = () => {
     const { settings } = useSettings();
     const { addToast } = useToasts();
@@ -79,31 +106,22 @@ const CrmPage: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card className="p-6 border-none shadow-premium relative overflow-hidden group hover:shadow-indigo-500/10 transition-all">
-                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                        <Users size={100} />
-                    </div>
-                    <div className="relative z-10">
-                        <p className="text-sm font-black text-slate-500 mb-1">إجمالي لنا (مديونيات العملاء)</p>
-                        <h3 className="text-4xl font-black text-indigo-600 mb-4">{formatCurrency(totalCustomerDebt, settings?.currency || 'SAR')}</h3>
-                        <div className="flex items-center gap-4 text-xs font-bold text-slate-400">
-                            <span className="flex items-center gap-1"><Users size={14} /> {toArabicIndic(customers.length)} عميل مسجل</span>
-                        </div>
-                    </div>
-                </Card>
-
-                <Card className="p-6 border-none shadow-premium relative overflow-hidden group hover:shadow-rose-500/10 transition-all">
-                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                        <Building2 size={100} />
-                    </div>
-                    <div className="relative z-10">
-                        <p className="text-sm font-black text-slate-500 mb-1">إجمالي علينا (مستحقات الموردين)</p>
-                        <h3 className="text-4xl font-black text-rose-600 mb-4">{formatCurrency(totalSupplierDebt, settings?.currency || 'SAR')}</h3>
-                        <div className="flex items-center gap-4 text-xs font-bold text-slate-400">
-                            <span className="flex items-center gap-1"><Briefcase size={14} /> {toArabicIndic(suppliers.length)} مورد مسجل</span>
-                        </div>
-                    </div>
-                </Card>
+                <StatCard 
+                    title="مديونيات العملاء (لنا طرفهم)"
+                    value={formatCurrency(totalCustomerDebt, settings?.currency || 'SAR')}
+                    icon={<Users size={24} />}
+                    bgColor="bg-indigo-50 dark:bg-indigo-900/30"
+                    iconColor="text-indigo-600"
+                    delay={100}
+                />
+                <StatCard 
+                    title="مستحقات الموردين (علينا طرفهم)"
+                    value={formatCurrency(totalSupplierDebt, settings?.currency || 'SAR')}
+                    icon={<Building2 size={24} />}
+                    bgColor="bg-rose-50 dark:bg-rose-900/30"
+                    iconColor="text-rose-600"
+                    delay={200}
+                />
             </div>
 
             <Card className="border-none shadow-premium overflow-hidden">

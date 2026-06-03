@@ -9,7 +9,7 @@ import { Printer, Download, PlusCircle, Search, Edit, Trash2 } from 'lucide-reac
 import { exportToCsv } from '../utils/export';
 import PurchaseReceiptModal from '../components/purchases/PurchaseReceiptModal';
 import { useSettings } from '../hooks/useSettings';
-import { formatCurrency } from '../utils/localization';
+import { formatCurrency, toArabicIndic } from '../utils/localization';
 import TableSkeleton from '../components/ui/TableSkeleton';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import { useToasts } from '../hooks/useToasts';
@@ -31,6 +31,18 @@ const PurchasesPage: React.FC = () => {
   const { settings } = useSettings();
   const navigate = useNavigate();
   const { addToast } = useToasts();
+
+  const stats = useMemo(() => {
+     const today = new Date().toDateString();
+     const todayPurchases = purchases.filter(p => new Date(p.date).toDateString() === today);
+     
+     return {
+         totalCount: purchases.length,
+         todayCount: todayPurchases.length,
+         totalAmount: purchases.reduce((a, b) => a + Number(b.total || 0), 0),
+         todayAmount: todayPurchases.reduce((a, b) => a + Number(b.total || 0), 0)
+     };
+  }, [purchases]);
 
   const fetchPurchases = async () => {
     setLoading(true);
@@ -172,6 +184,26 @@ const PurchasesPage: React.FC = () => {
             )}
             <Button onClick={() => navigate('/purchases/new')} className="rounded-xl font-black shadow-lg shadow-indigo-500/20"><PlusCircle size={18} /> إضافة طلب</Button>
         </div>
+      </div>
+
+      {/* Summary Statistics */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <Card className="p-5 border-none shadow-sm bg-white dark:bg-slate-800">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">إجمالي فواتير الشراء</p>
+              <p className="text-2xl font-black text-slate-800 dark:text-white">{toArabicIndic(stats.totalCount)}</p>
+          </Card>
+          <Card className="p-5 border-none shadow-sm bg-white dark:bg-slate-800">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">فواتير شراء اليوم</p>
+              <p className="text-2xl font-black text-indigo-600">{toArabicIndic(stats.todayCount)}</p>
+          </Card>
+          <Card className="p-5 border-none shadow-sm bg-white dark:bg-slate-800">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">إجمالي المشتريات</p>
+              <p className="text-2xl font-black text-slate-800 dark:text-white line-clamp-1">{formatCurrency(stats.totalAmount, settings?.currency)}</p>
+          </Card>
+          <Card className="p-5 border-none shadow-sm bg-white dark:bg-slate-800 border-s-4 border-s-orange-500">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">مشتريات اليوم</p>
+              <p className="text-2xl font-black text-orange-600 line-clamp-1">{formatCurrency(stats.todayAmount, settings?.currency)}</p>
+          </Card>
       </div>
 
       {(startDate || endDate) && (

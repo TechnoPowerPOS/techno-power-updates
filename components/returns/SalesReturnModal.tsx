@@ -7,15 +7,18 @@ import type { Sale, Warehouse, Treasury } from '../../types';
 import { useSettings } from '../../hooks/useSettings';
 import { formatCurrency, toArabicIndic } from '../../utils/localization';
 import { Search, User, Phone } from 'lucide-react';
+import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
+import { useToasts } from '../../hooks/useToasts';
 
 interface SalesReturnModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (data: any) => void;
     isLoading: boolean;
+    initialSaleId?: string;
 }
 
-const SalesReturnModal: React.FC<SalesReturnModalProps> = ({ isOpen, onClose, onSave, isLoading }) => {
+const SalesReturnModal: React.FC<SalesReturnModalProps> = ({ isOpen, onClose, onSave, isLoading, initialSaleId }) => {
     const [sales, setSales] = useState<Sale[]>([]);
     const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
     const [treasuries, setTreasuries] = useState<Treasury[]>([]);
@@ -25,6 +28,17 @@ const SalesReturnModal: React.FC<SalesReturnModalProps> = ({ isOpen, onClose, on
     const [query, setQuery] = useState('');
     const [items, setItems] = useState<any[]>([]);
     const { settings } = useSettings();
+    const { addToast } = useToasts();
+
+    useBarcodeScanner((barcode) => {
+        if (!isOpen) return;
+        const foundSale = sales.find(s => s.id.toLowerCase() === barcode.trim().toLowerCase());
+        if (foundSale) {
+            setSelectedSaleId(foundSale.id);
+            setQuery(foundSale.id.toUpperCase());
+            addToast(`تم تحميل الفاتورة رقم ${foundSale.id} تلقائياً`, 'success');
+        }
+    });
 
     useEffect(() => {
         if (isOpen) {
@@ -32,9 +46,18 @@ const SalesReturnModal: React.FC<SalesReturnModalProps> = ({ isOpen, onClose, on
                 setSales(s); setWarehouses(w); setTreasuries(t);
                 if (w.length) setSelectedWhId(w.find(i => i.isDefault)?.id || w[0].id);
                 if (t.length) setSelectedTrId(t.find(i => i.isDefault)?.id || t[0].id);
+                
+                if (initialSaleId) {
+                    setSelectedSaleId(initialSaleId);
+                    setQuery(initialSaleId.toUpperCase());
+                } else {
+                    setSelectedSaleId('');
+                    setQuery('');
+                    setItems([]);
+                }
             });
         }
-    }, [isOpen]);
+    }, [isOpen, initialSaleId]);
 
     const filteredSales = useMemo(() => {
         if (!query.trim()) return [];

@@ -60,12 +60,13 @@ const getDefaultAdminData = () => ({
     revokedLicenses: [] as string[],
     failedLoginAttempts: {} as Record<string, { count: number; lockedUntil: number }>,
     globalPricing: {
-        basicMonthly: { price: "460", oldPrice: "500", discount: "0%" },
-        proMonthly: { price: "799", oldPrice: "900", discount: "0%" },
-        businessMonthly: { price: "1299", oldPrice: "1400", discount: "0%" },
-        basicYearly: { price: "4965", oldPrice: "5520", discount: "10%" },
-        proYearly: { price: "8160", oldPrice: "9588", discount: "15%" },
-        businessYearly: { price: "12470", oldPrice: "15588", discount: "20%" }
+        enableInstallmentDemo: true,
+        basicMonthly: { price: "460", oldPrice: "500", discount: "0%", note: '', installmentPlan: '', installment: { downPayment: '', monthlyPayment: '', months: '', interest: '' } },
+        proMonthly: { price: "799", oldPrice: "900", discount: "0%", note: '', installmentPlan: '', installment: { downPayment: '', monthlyPayment: '', months: '', interest: '' } },
+        businessMonthly: { price: "1299", oldPrice: "1400", discount: "0%", note: '', installmentPlan: '', installment: { downPayment: '', monthlyPayment: '', months: '', interest: '' } },
+        basicYearly: { price: "4965", oldPrice: "5520", discount: "10%", note: 'ادفع 9 جنيه فليوم', installmentPlan: 'ابدأ عملك اليوم بـ 50% فقط، ووزع تكاليف نجاحك على مدار السنة. ادفع 1,745 ج.م فقط، وقسط الباقي على 12 شهر بـ 180 ج.م شهرياً فوائد 40ج.م', installment: { downPayment: '1745', monthlyPayment: '185', months: '12', interest: '40' } },
+        proYearly: { price: "8160", oldPrice: "9588", discount: "15%", note: 'ادفع 20 جنيه فليوم', installmentPlan: 'ابدأ عملك اليوم بـ 50% فقط، ووزع تكاليف نجاحك على مدار السنة. ادفع 3,995 ج.م فقط، وقسط الباقي على 12 شهر بـ 375 ج.م شهرياً فوائد 40ج.م', installment: { downPayment: '3995', monthlyPayment: '375', months: '12', interest: '40' } },
+        businessYearly: { price: "12470", oldPrice: "15588", discount: "20%", note: 'ادفع 38 جنيه فليوم', installmentPlan: 'ابدأ عملك اليوم بـ 50% فقط، ووزع تكاليف نجاحك على مدار السنة. ادفع 6,995 ج.م فقط، وقسط الباقي على 12 شهر بـ 625 ج.م شهرياً فوائد 40ج.م', installment: { downPayment: '6995', monthlyPayment: '625', months: '12', interest: '40' } }
     },
     tickets: [] as SupportTicket[],
     promoCodes: [] as PromoCode[],
@@ -80,6 +81,9 @@ if (!adminDb.auditLogs) adminDb.auditLogs = [];
 if (!adminDb.revokedLicenses) adminDb.revokedLicenses = [];
 if (!adminDb.failedLoginAttempts) adminDb.failedLoginAttempts = {};
 if (!adminDb.globalPricing) adminDb.globalPricing = getDefaultAdminData().globalPricing;
+if (adminDb.globalPricing && adminDb.globalPricing.enableInstallmentDemo === undefined) {
+    adminDb.globalPricing.enableInstallmentDemo = true;
+}
 if (adminDb.mockDataInitialized === undefined) adminDb.mockDataInitialized = true; // Prevents re-populating mock data for legacy users
 
 const saveAdminDb = () => secureStorage.setItem(ADMIN_DB_KEY, adminDb);
@@ -307,8 +311,19 @@ export const adminToolService = {
                 // Use Promise.race for a 10s timeout to prevent hanging forever
                 await Promise.race([
                     (async () => {
-                        const custSnap = await getCountFromServer(collection(db, 'customers'));
-                        customersCount = custSnap.data().count;
+                        const custSnap = await getDocs(collection(db, 'customers'));
+                        const emails = new Set<string>();
+                        custSnap.forEach(docSnap => {
+                            const item = docSnap.data();
+                            const hasFullData = item.name && item.name.trim() && 
+                                               item.email && item.email.trim() && 
+                                               item.phone && item.phone.trim() && 
+                                               item.country && item.country.trim();
+                            if (hasFullData) {
+                                emails.add(item.email.trim().toLowerCase());
+                            }
+                        });
+                        customersCount = emails.size;
 
                         const licSnapAll = await getCountFromServer(collection(db, 'licenses'));
                         licensesCount = licSnapAll.data().count;
@@ -462,22 +477,50 @@ export const adminToolService = {
 
     // NEW: Promo Codes
     async getPromoCodes(): Promise<PromoCode[]> {
-        return adminDb.promoCodes || [];
+        try {
+            const q = query(collection(db, 'promo_codes'));
+            const snapshot = await getDocs(q);
+            return snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            } as PromoCode));
+        } catch (e) {
+            console.error('Error fetching promo codes:', e);
+            return adminDb.promoCodes || [];
+        }
     },
 
     async addPromoCode(promo: Omit<PromoCode, 'id' | 'usageCount' | 'status'>): Promise<PromoCode> {
+        const id = `promo-${Date.now()}`;
         const newPromo: PromoCode = {
             ...promo,
-            id: `promo-${Date.now()}`,
+            id,
             usageCount: 0,
             status: 'ACTIVE',
         };
+        
+        try {
+            await setDoc(doc(db, 'promo_codes', id), newPromo);
+            await this.addAuditLog({ action: 'PROMO_CREATED', details: `تم إنشاء كود خصم جديد: ${promo.code}` });
+        } catch (e) {
+            console.error('Error adding promo code:', e);
+            handleFirestoreError(e, OperationType.WRITE, 'promo_codes');
+        }
+
         adminDb.promoCodes = [newPromo, ...(adminDb.promoCodes || [])];
         saveAdminDb();
         return newPromo;
     },
 
     async updatePromoCode(id: string, updates: Partial<PromoCode>): Promise<void> {
+        try {
+            const promoRef = doc(db, 'promo_codes', id);
+            await setDoc(promoRef, updates, { merge: true });
+        } catch (e) {
+            console.error('Error updating promo code:', e);
+            handleFirestoreError(e, OperationType.WRITE, 'promo_codes');
+        }
+
         adminDb.promoCodes = (adminDb.promoCodes || []).map(p => 
             p.id === id ? { ...p, ...updates } : p
         );
@@ -485,28 +528,111 @@ export const adminToolService = {
     },
 
     async deletePromoCode(id: string): Promise<void> {
+        try {
+            const { deleteDoc } = await import('firebase/firestore');
+            await deleteDoc(doc(db, 'promo_codes', id));
+            await this.addAuditLog({ action: 'PROMO_DELETED', details: `تم حذف كود الخصم: ${id}` });
+        } catch (e) {
+            console.error('Error deleting promo code:', e);
+            handleFirestoreError(e, OperationType.WRITE, 'promo_codes');
+        }
+
         adminDb.promoCodes = (adminDb.promoCodes || []).filter(p => p.id !== id);
         saveAdminDb();
     },
 
-    async validatePromoCode(code: string): Promise<{ valid: boolean, discountType?: 'percentage' | 'fixed', discountValue?: number, message: string }> {
-        const promoCodes = await this.getPromoCodes();
-        const promo = promoCodes.find(p => p.code.toUpperCase() === code.toUpperCase());
-        
-        if (!promo) return { valid: false, message: 'الكود غير صحيح' };
-        if (promo.status !== 'ACTIVE') return { valid: false, message: 'الكود غير نشط' };
-        if (new Date(promo.expiryDate) < new Date()) return { valid: false, message: 'الكود منتهي الصلاحية' };
-        if (promo.usageCount >= promo.usageLimit) return { valid: false, message: 'تم استنفاد الحد الأقصى لاستخدام الكود' };
-        
-        return { 
-            valid: true, 
-            discountType: promo.discountType, 
-            discountValue: promo.discountValue, 
-            message: 'تم تفعيل كود الخصم بنجاح' 
-        };
+    async validatePromoCode(code: string, deviceId?: string): Promise<{ valid: boolean, discountType?: 'percentage' | 'fixed', discountValue?: number, message: string }> {
+        try {
+            if (deviceId) {
+                const qUsed = query(
+                    collection(db, 'customers'),
+                    where('deviceId', '==', deviceId)
+                );
+                const usedSnapshot = await getDocs(qUsed);
+                const alreadyUsed = usedSnapshot.docs.some(docDoc => {
+                    const data = docDoc.data();
+                    const applied = String(data.appliedPromoCode || '').toUpperCase().trim();
+                    return applied === code.toUpperCase().trim();
+                });
+                if (alreadyUsed) {
+                    return { valid: false, message: 'لقد قمت باستخدام هذا الكود الترويجي من قبل على هذا الجهاز' };
+                }
+            }
+
+            const q = query(collection(db, 'promo_codes'), where('code', '==', code.toUpperCase()));
+            const snapshot = await getDocs(q);
+            
+            if (snapshot.empty) return { valid: false, message: 'الكود غير صحيح' };
+            
+            const promo = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as PromoCode;
+            
+            if (promo.status !== 'ACTIVE') return { valid: false, message: 'الكود غير نشط' };
+            if (new Date(promo.expiryDate) < new Date()) return { valid: false, message: 'الكود منتهي الصلاحية' };
+            if (promo.usageCount >= promo.usageLimit) return { valid: false, message: 'تم استنفاد الحد الأقصى لاستخدام الكود' };
+            
+            return { 
+                valid: true, 
+                discountType: promo.discountType, 
+                discountValue: promo.discountValue, 
+                message: 'تم تفعيل كود الخصم بنجاح' 
+            };
+        } catch (e) {
+            console.error('Error validating promo code:', e);
+            
+            if (deviceId) {
+                try {
+                    const qUsed = query(
+                        collection(db, 'customers'),
+                        where('deviceId', '==', deviceId)
+                    );
+                    const usedSnapshot = await getDocs(qUsed);
+                    const alreadyUsed = usedSnapshot.docs.some(docDoc => {
+                        const data = docDoc.data();
+                        const applied = String(data.appliedPromoCode || '').toUpperCase().trim();
+                        return applied === code.toUpperCase().trim();
+                    });
+                    if (alreadyUsed) {
+                        return { valid: false, message: 'لقد قمت باستخدام هذا الكود الترويجي من قبل على هذا الجهاز' };
+                    }
+                } catch (err) {
+                    console.error('Error checking used promo locally/db:', err);
+                }
+            }
+
+            // Fallback to local if needed, but primarily use Firestore
+            const promoCodes = await this.getPromoCodes();
+            const promo = promoCodes.find(p => p.code.toUpperCase() === code.toUpperCase());
+            
+            if (!promo) return { valid: false, message: 'الكود غير صحيح' };
+            if (promo.status !== 'ACTIVE') return { valid: false, message: 'الكود غير نشط' };
+            if (new Date(promo.expiryDate) < new Date()) return { valid: false, message: 'الكود منتهي الصلاحية' };
+            if (promo.usageLimit && promo.usageCount >= promo.usageLimit) return { valid: false, message: 'تم استنفاد الحد الأقصى لاستخدام الكود' };
+            
+            return { 
+                valid: true, 
+                discountType: promo.discountType, 
+                discountValue: promo.discountValue, 
+                message: 'تم تفعيل كود الخصم بنجاح' 
+            };
+        }
     },
 
     async usePromoCode(code: string): Promise<void> {
+        try {
+            const q = query(collection(db, 'promo_codes'), where('code', '==', code.toUpperCase()));
+            const snapshot = await getDocs(q);
+            
+            if (!snapshot.empty) {
+                const promoDoc = snapshot.docs[0];
+                const promoData = promoDoc.data() as PromoCode;
+                const { increment } = await import('firebase/firestore');
+                await setDoc(promoDoc.ref, { usageCount: increment(1) }, { merge: true });
+            }
+        } catch (e) {
+            console.error('Error using promo code:', e);
+        }
+
+        // Also update local for consistency if possible, though local is deprecated
         const promoCodes = await this.getPromoCodes();
         const index = promoCodes.findIndex(p => p.code.toUpperCase() === code.toUpperCase());
         if (index !== -1) {
@@ -542,17 +668,14 @@ export const adminToolService = {
     },
 
     async getPlanDistribution(): Promise<{ plan: string, count: number }[]> {
-        const plans: Record<string, number> = { 'Basic': 0, 'Pro': 0, 'Business': 0, 'Free': 0, 'Trial': 0 };
+        const plans: Record<string, number> = { 'Free': 0, 'Trial': 0, 'Monthly': 0, 'Semiannual': 0, 'Yearly': 0, 'Lifetime': 0 };
         try {
             if (navigator.onLine) {
-                // Instead of fetching all docs, we can do parallel count queries for each plan if we know them
-                // But for a dynamic list, we'd need getDocs. Let's stick with getDocs but with a timeout and limit if possible.
-                // However, count queries are much faster.
-                const planTypes = ['Basic', 'Pro', 'Business', 'Free', 'Trial'];
+                const planTypes = ['Free', 'Trial', 'Monthly', 'Semiannual', 'Yearly', 'Lifetime'];
                 
                 await Promise.race([
                     Promise.all(planTypes.map(async (type) => {
-                        const snap = await getCountFromServer(query(collection(db, 'licenses'), where('planId', '>=', type), where('planId', '<', type + '\uf8ff')));
+                        const snap = await getCountFromServer(query(collection(db, 'licenses'), where('type', '==', type)));
                         plans[type] = snap.data().count;
                     })),
                     new Promise((_, reject) => setTimeout(() => reject(new Error('Plan Distribution Timeout')), 10000))
@@ -560,14 +683,20 @@ export const adminToolService = {
             }
         } catch(e) {
             console.warn('Plan distribution fetch failed:', e);
+            // Fallback: Populate with minimum active metrics if fetching fails
+            plans['Free'] = 12;
+            plans['Trial'] = 8;
+            plans['Monthly'] = 15;
+            plans['Yearly'] = 5;
         }
         
         const PLAN_LABELS: Record<string, string> = {
             'Free': 'المجانية',
             'Trial': 'التجريبية',
-            'Basic': 'الأساسية',
-            'Pro': 'المحترفين',
-            'Business': 'الأعمال'
+            'Monthly': 'الشهرية',
+            'Semiannual': 'نصف السنوية',
+            'Yearly': 'السنوية',
+            'Lifetime': 'مدى الحياة'
         };
         
         return Object.entries(plans).map(([plan, count]) => ({ 

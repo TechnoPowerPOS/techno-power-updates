@@ -25,6 +25,8 @@ export interface PlanLimits {
     hasCustomerSatisfaction: boolean;
     hasActivityLogs: boolean;
     hasBackup: boolean;
+    hasAutoBackup: boolean;
+    hasZipBackup: boolean;
     hasLoyalty: boolean;
     hasMultipleInvoiceDesigns: boolean;
     hasNotifications: boolean;
@@ -60,6 +62,22 @@ export interface PlanLimits {
     hasNotes: boolean;
     hasFinancialSettlements: boolean;
     hasCustomUi: boolean;
+    hasStagnantProducts: boolean;
+    hasExpirationDates: boolean;
+    hasCashierShifts: boolean;
+    hasSalesDrafts: boolean;
+    hasCategories: boolean;
+    hasStockHistory: boolean;
+    hasMixedPayment: boolean;
+    hasDeferredPayment: boolean;
+    hasProductImage: boolean;
+    hasHRAttendance: boolean;
+    hasBarcodePrinting: boolean;
+    hasDailyKPIs: boolean;
+    hasProductVariants: boolean;
+    hasOffers: boolean;
+    hasExchange: boolean;
+    hasReservations: boolean;
 }
 
 const defaultBooleans = {
@@ -85,6 +103,7 @@ const defaultBooleans = {
     hasHRVacations: false,
     hasHRPerformance: false,
     hasHRCommissions: false,
+    hasDailyKPIs: false,
     hasOpsWorkOrders: false,
     hasOpsProduction: false,
     hasAccountingBudget: false,
@@ -94,7 +113,22 @@ const defaultBooleans = {
     hasAccountStatements: false,
     hasNotes: false,
     hasFinancialSettlements: false,
-    hasCustomUi: false
+    hasCustomUi: false,
+    hasStagnantProducts: false,
+    hasExpirationDates: false,
+    hasCashierShifts: false,
+    hasSalesDrafts: false,
+    hasCategories: false,
+    hasStockHistory: false,
+    hasMixedPayment: false,
+    hasDeferredPayment: false,
+    hasProductImage: false,
+    hasHRAttendance: false,
+    hasBarcodePrinting: false,
+    hasProductVariants: false,
+    hasOffers: false,
+    hasExchange: false,
+    hasReservations: false
 };
 
 const fullBooleans = {
@@ -129,7 +163,23 @@ const fullBooleans = {
     hasAccountStatements: true,
     hasNotes: true,
     hasFinancialSettlements: true,
-    hasCustomUi: true
+    hasCustomUi: true,
+    hasStagnantProducts: true,
+    hasExpirationDates: true,
+    hasCashierShifts: true,
+    hasSalesDrafts: true,
+    hasCategories: true,
+    hasStockHistory: true,
+    hasMixedPayment: true,
+    hasDeferredPayment: true,
+    hasProductImage: true,
+    hasHRAttendance: true,
+    hasBarcodePrinting: true,
+    hasDailyKPIs: true,
+    hasProductVariants: true,
+    hasOffers: true,
+    hasExchange: true,
+    hasReservations: true
 };
 
 export const PLAN_LIMITS: Record<string, PlanLimits> = {
@@ -155,6 +205,8 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
         hasCustomerSatisfaction: false,
         hasActivityLogs: false,
         hasBackup: false,
+        hasAutoBackup: false,
+        hasZipBackup: false,
         hasLoyalty: false,
         hasMultipleInvoiceDesigns: false,
         hasNotifications: false,
@@ -185,6 +237,8 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
         hasCustomerSatisfaction: true,
         hasActivityLogs: true,
         hasBackup: false,
+        hasAutoBackup: false,
+        hasZipBackup: false,
         hasLoyalty: true,
         hasMultipleInvoiceDesigns: true,
         hasNotifications: true,
@@ -215,6 +269,8 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
         hasCustomerSatisfaction: true,
         hasActivityLogs: true,
         hasBackup: true,
+        hasAutoBackup: true,
+        hasZipBackup: true,
         hasLoyalty: true,
         hasMultipleInvoiceDesigns: true,
         hasNotifications: true,
@@ -248,6 +304,8 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
         hasCustomerSatisfaction: true,
         hasActivityLogs: true,
         hasBackup: true,
+        hasAutoBackup: true,
+        hasZipBackup: true,
         hasLoyalty: true,
         hasMultipleInvoiceDesigns: true,
         hasNotifications: true,
@@ -277,6 +335,8 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
         hasCustomerSatisfaction: true,
         hasActivityLogs: true,
         hasBackup: true,
+        hasAutoBackup: true,
+        hasZipBackup: true,
         hasLoyalty: true,
         hasMultipleInvoiceDesigns: true,
         hasNotifications: true,
@@ -305,6 +365,8 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
         hasCustomerSatisfaction: true,
         hasActivityLogs: true,
         hasBackup: true,
+        hasAutoBackup: true,
+        hasZipBackup: true,
         hasLoyalty: true,
         hasMultipleInvoiceDesigns: true,
         hasNotifications: true,
@@ -333,6 +395,8 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
         hasCustomerSatisfaction: false,
         hasActivityLogs: true,
         hasBackup: true,
+        hasAutoBackup: true,
+        hasZipBackup: true,
         hasLoyalty: false,
         hasMultipleInvoiceDesigns: false,
         hasNotifications: false,
@@ -364,6 +428,8 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
         hasCustomerSatisfaction: true,
         hasActivityLogs: true,
         hasBackup: true,
+        hasAutoBackup: true,
+        hasZipBackup: true,
         hasLoyalty: true,
         hasMultipleInvoiceDesigns: true,
         hasNotifications: true,
@@ -394,6 +460,8 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
         hasCustomerSatisfaction: true,
         hasActivityLogs: true,
         hasBackup: true,
+        hasAutoBackup: true,
+        hasZipBackup: true,
         hasLoyalty: true,
         hasMultipleInvoiceDesigns: true,
         hasNotifications: true,
@@ -423,6 +491,8 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
         hasCustomerSatisfaction: false,
         hasActivityLogs: true,
         hasBackup: true,
+        hasAutoBackup: true,
+        hasZipBackup: true,
         hasLoyalty: false,
         hasMultipleInvoiceDesigns: false,
         hasNotifications: false,
@@ -454,6 +524,8 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
         hasCustomerSatisfaction: true,
         hasActivityLogs: true,
         hasBackup: true,
+        hasAutoBackup: true,
+        hasZipBackup: true,
         hasLoyalty: true,
         hasMultipleInvoiceDesigns: true,
         hasNotifications: true,
@@ -484,6 +556,8 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
         hasCustomerSatisfaction: true,
         hasActivityLogs: true,
         hasBackup: true,
+        hasAutoBackup: true,
+        hasZipBackup: true,
         hasLoyalty: true,
         hasMultipleInvoiceDesigns: true,
         hasNotifications: true,

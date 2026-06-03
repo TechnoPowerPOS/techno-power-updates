@@ -45,6 +45,7 @@ import DashboardPage from './pages/DashboardPage';
 import HomePage from './pages/HomePage'; 
 import PosPage from './pages/PosPage';
 import ProductsPage from './pages/ProductsPage';
+import CategoriesPage from './pages/CategoriesPage';
 import InventoryAuditPage from './pages/InventoryAuditPage';
 import SalesPage from './pages/SalesPage';
 import PurchasesPage from './pages/PurchasesPage';
@@ -76,6 +77,8 @@ import AdminToolLoginPage from './pages/AdminToolLoginPage';
 import AdminToolDashboardPage from './pages/AdminToolDashboardPage';
 import AdminGlobalSettingsPage from './pages/AdminGlobalSettingsPage';
 import AdminDevicesPage from './pages/AdminDevicesPage';
+import AdminRequestsPage from './pages/AdminRequestsPage';
+import AdminCustomersFilesPage from './pages/AdminCustomersFilesPage';
 import AdminAnalyticsPage from './pages/AdminAnalyticsPage';
 import AdminPerformancePage from './pages/AdminPerformancePage';
 import AdminTamperingPage from './pages/AdminTamperingPage';
@@ -95,6 +98,9 @@ import ExpensesPage from './pages/accounts/ExpensesPage';
 import AssetsPage from './pages/accounts/AssetsPage';
 import ManufacturingManagementPage from './pages/operations/ManufacturingManagementPage';
 import EmployeeManagementPage from './pages/hr/EmployeeManagementPage';
+import CashierShiftsPage from './pages/CashierShiftsPage';
+import SalesDraftsPage from './pages/SalesDraftsPage';
+import AttendancePage from './pages/hr/AttendancePage';
 
 const LockScreen: React.FC = () => {
     const { user, unlockSession, switchUser } = useAuth();
@@ -175,7 +181,7 @@ const LicenseGuard: React.FC<{ children?: React.ReactNode }> = ({ children }) =>
     const { isLicensed, status, isLoading } = useLicense();
     const { user } = useAuth();
     const location = useLocation();
-    const isAdmin = user?.email === 'm7mdshipl@gmail.com' || user?.email === 'admin@techno.com';
+    const isAdmin = user?.roleId === 'r-1';
 
     const isPublicPath = location.pathname.includes('/login') || 
                         location.pathname.includes('/admin-tool') || 
@@ -195,7 +201,7 @@ const LicenseGuard: React.FC<{ children?: React.ReactNode }> = ({ children }) =>
 const AppRoutes: React.FC = () => {
     const { user } = useAuth();
     const { isLicensed } = useLicense();
-    const isAdmin = user?.email === 'm7mdshipl@gmail.com' || user?.email === 'admin@techno.com';
+    const isAdmin = user?.roleId === 'r-1';
 
     return (
         <>
@@ -208,6 +214,8 @@ const AppRoutes: React.FC = () => {
             
             <Route path="/admin-tool" element={<AdminLayout />}>
               <Route path="login" element={<AdminToolLoginPage />} />
+              <Route path="requests" element={<AdminRequestsPage />} />
+              <Route path="customers-files" element={<AdminCustomersFilesPage />} />
               <Route path="devices" element={<AdminDevicesPage />} />
               <Route path="licenses" element={<AdminLicensePage />} />
               <Route path="expired" element={<AdminExpiredLicensesPage />} />
@@ -219,8 +227,6 @@ const AppRoutes: React.FC = () => {
               <Route path="policies" element={<AdminPoliciesPage />} />
               <Route path="suggestions" element={<AdminSuggestionsPage />} />
               <Route path="global-settings" element={<AdminGlobalSettingsPage />} />
-              <Route path="analytics" element={<AdminAnalyticsPage />} />
-              <Route path="tampering" element={<AdminTamperingPage />} />
               <Route path="performance" element={<AdminPerformancePage />} />
               <Route path="promo-codes" element={<AdminPromoCodesPage />} />
               <Route path="affiliates" element={<AdminAffiliatesPage />} />
@@ -233,6 +239,7 @@ const AppRoutes: React.FC = () => {
                     <Route path="dashboard" element={<ProtectedRoute permission="view_dashboard"><DashboardPage /></ProtectedRoute>} />
                     <Route path="pos" element={<ProtectedRoute permission="manage_pos"><PosPage /></ProtectedRoute>} />
                     <Route path="products" element={<ProtectedRoute permission="manage_products"><ProductsPage /></ProtectedRoute>} />
+                    <Route path="categories" element={<ProtectedRoute permission="manage_products"><CategoriesPage /></ProtectedRoute>} />
                     <Route path="inventory-audit" element={<ProtectedRoute permission="manage_products"><InventoryAuditPage /></ProtectedRoute>} />
                     <Route path="warehouses" element={<ProtectedRoute permission="manage_products"><WarehousesPage /></ProtectedRoute>} />
                     <Route path="stock-transfer" element={<ProtectedRoute permission="manage_products"><StockTransferPage /></ProtectedRoute>} />
@@ -245,6 +252,7 @@ const AppRoutes: React.FC = () => {
                     <Route path="reports" element={<ProtectedRoute permission="view_reports"><ReportsPage /></ProtectedRoute>} />
                     <Route path="employee-management" element={<ProtectedRoute permission="manage_hr_personnel"><EmployeeManagementPage /></ProtectedRoute>} />
                     <Route path="manufacturing-management" element={<ProtectedRoute permission="manage_op_manufacturing"><ManufacturingManagementPage /></ProtectedRoute>} />
+                    <Route path="hr/attendance" element={<ProtectedRoute permission="manage_hr_personnel"><AttendancePage /></ProtectedRoute>} />
                     <Route path="tools/accounting" element={<ProtectedRoute permission="view_dashboard"><AccountingToolsPage /></ProtectedRoute>} />
                     <Route path="employee-performance" element={<ProtectedRoute permission="view_reports"><EmployeePerformancePage /></ProtectedRoute>} />
                     <Route path="sales-forecast" element={<ProtectedRoute permission="view_sales_forecast"><SalesForecastPage /></ProtectedRoute>} />
@@ -261,6 +269,8 @@ const AppRoutes: React.FC = () => {
                     <Route path="treasury" element={<ProtectedRoute permission="view_treasury"><TreasuryPage /></ProtectedRoute>} />
                     <Route path="financial-accounts" element={<ProtectedRoute permission="view_treasury"><FinancialAccountsPage /></ProtectedRoute>} />
                     <Route path="financial-settlement" element={<ProtectedRoute permission="view_treasury"><FinancialSettlementPage /></ProtectedRoute>} />
+                    <Route path="shifts-log" element={<ProtectedRoute permission="view_treasury"><CashierShiftsPage /></ProtectedRoute>} />
+                    <Route path="sales-drafts" element={<ProtectedRoute permission="view_sales"><SalesDraftsPage /></ProtectedRoute>} />
                     <Route path="whatsapp" element={<ProtectedRoute permission="manage_whatsapp"><WhatsAppPage /></ProtectedRoute>} />
                     <Route path="activity-logs" element={<ProtectedRoute permission="view_activity_logs"><ActivityLogsPage /></ProtectedRoute>} />
                     <Route path="settings" element={<ProtectedRoute permission={['manage_settings', 'manage_users', 'manage_backups']}><SettingsPage /></ProtectedRoute>} />

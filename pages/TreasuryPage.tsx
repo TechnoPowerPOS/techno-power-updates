@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Transaction, Treasury } from '../types';
-import { collection, query, getDocs, addDoc, serverTimestamp, writeBatch, doc, deleteDoc, updateDoc, orderBy, limit, where, increment } from 'firebase/firestore';
-import { db } from '../services/firebase';
+import { collection, query, getDocs, addDoc, serverTimestamp, writeBatch, doc, deleteDoc, updateDoc, orderBy, limit, where, increment } from '../services/localFirestore';
+import { db  } from '../services/localFirestore';
 import { handleFirestoreError, OperationType } from '../services/firestoreErrorHandler';
 import Card from '../components/ui/Card';
 import { api } from '../services/mockApi'; // Keep for some types/helpers if needed
@@ -66,7 +66,7 @@ const TreasuryPage: React.FC = () => {
     const [transactionToUndo, setTransactionToUndo] = useState<Transaction | null>(null);
 
     // Form States
-    const [newTreasury, setNewTreasury] = useState({ name: '', currency: 'SAR', balance: 0 });
+    const [newTreasury, setNewTreasury] = useState({ name: '', currency: 'EGP', balance: 0 });
     const [transferData, setTransferData] = useState({ from: '', to: '', amount: 0, desc: '' });
     const [exportData, setExportData] = useState({ from: '', dest: '', amount: 0, desc: '', targetAccountId: '' });
 
@@ -79,7 +79,7 @@ const TreasuryPage: React.FC = () => {
             const treasuriesSnap = await getDocs(collection(db, 'treasuries'));
             const treasuryData = treasuriesSnap.docs.map(d => ({ id: d.id, ...d.data() } as Treasury));
 
-            const q = query(collection(db, 'treasury_transactions'), orderBy('date', 'desc'), limit(100));
+            const q = query(collection(db, 'transactions'), orderBy('date', 'desc'), limit(100));
             const transSnap = await getDocs(q);
             const transData = transSnap.docs.map(d => {
                 const data = d.data();
@@ -111,7 +111,7 @@ const TreasuryPage: React.FC = () => {
             const mainTreasury = {
                 name: 'الخزينة الرئيسية',
                 balance: 0,
-                currency: settings.currency || 'SAR',
+                currency: settings.currency || 'EGP',
                 isDefault: true,
                 createdAt: serverTimestamp()
             };
@@ -138,14 +138,31 @@ const TreasuryPage: React.FC = () => {
 
         setIsSaving(true);
         try {
-            await addDoc(collection(db, 'treasuries'), { 
+            const batch = writeBatch(db);
+            const ref = doc(collection(db, 'treasuries'));
+            batch.set(ref, { 
                 ...newTreasury, 
                 isDefault: treasuries.length === 0,
                 createdAt: serverTimestamp() 
             });
+
+            if (newTreasury.balance > 0) {
+                const trRef = doc(collection(db, 'transactions'));
+                batch.set(trRef, {
+                    treasuryId: ref.id,
+                    type: 'income',
+                    amount: newTreasury.balance,
+                    category: 'رصيد افتتاحي',
+                    description: `رصيد افتتاحي عند إنشاء الخزينة: ${newTreasury.name}`,
+                    date: new Date().toISOString()
+                });
+            }
+
+            await batch.commit();
+            api.logActivityEntry('إدارة الخزائن', `تم إنشاء خزينة جديدة: ${newTreasury.name}`);
             addToast("تم إنشاء الخزينة بنجاح", "success");
             setIsTreasuryModalOpen(false);
-            setNewTreasury({ name: '', currency: settings?.currency || 'SAR', balance: 0 });
+            setNewTreasury({ name: '', currency: settings?.currency || 'EGP', balance: 0 });
             await fetchData();
         } catch (e) { handleFirestoreError(e, OperationType.CREATE, 'treasuries'); } finally { setIsSaving(false); }
     };
@@ -170,11 +187,11 @@ const TreasuryPage: React.FC = () => {
             batch.update(ref, {
                 name: editingTreasury.name,
                 currency: editingTreasury.currency,
-                balance: editingTreasury.balance,
                 isDefault: editingTreasury.isDefault || false
             });
 
             await batch.commit();
+            api.logActivityEntry('إدارة الخزائن', `تم تحديث بيانات الخزينة: ${editingTreasury.name}`);
             addToast("تم تحديث بيانات الخزينة بنجاح", "success");
             setIsEditModalOpen(false);
             setEditingTreasury(null);
@@ -187,6 +204,11 @@ const TreasuryPage: React.FC = () => {
         if (transferData.from === transferData.to) { addToast("لا يمكن التحويل لنفس الخزينة", "warning"); return; }
         
         const amt = parseFloat(transferData.amount as any) || 0;
+        if (amt <= 0) {
+            addToast("المبلغ يجب أن يكون أكبر من صفر", "error");
+            return;
+        }
+
         const fromTreasury = treasuries.find(t => t.id === transferData.from);
         if (!fromTreasury || fromTreasury.balance < amt) {
             addToast("رصيد غير كافٍ في الخزينة المصدر", "error");
@@ -203,7 +225,7 @@ const TreasuryPage: React.FC = () => {
             batch.update(fromRef, { balance: increment(-amt) });
             batch.update(toRef, { balance: increment(amt) });
 
-            const transRef = doc(collection(db, 'treasury_transactions'));
+            const transRef = doc(collection(db, 'transactions'));
             batch.set(transRef, {
                 treasuryId: transferData.from, // Source
                 toTreasuryId: transferData.to, // Destination
@@ -215,6 +237,7 @@ const TreasuryPage: React.FC = () => {
             });
 
             await batch.commit();
+            api.logActivityEntry('تحويل مالي', `تم تحويل مبلغ ${amt} من الخزينة ${transferData.from} إلى الخزينة ${transferData.to}`);
             addToast("تم التحويل بنجاح", "success");
             setIsTransferModalOpen(false);
             setTransferData({ ...transferData, amount: 0, desc: '' });
@@ -226,6 +249,11 @@ const TreasuryPage: React.FC = () => {
         e.preventDefault();
         
         const amt = parseFloat(exportData.amount as any) || 0;
+        if (amt <= 0) {
+            addToast("المبلغ يجب أن يكون أكبر من صفر", "error");
+            return;
+        }
+
         const fromTreasury = treasuries.find(t => t.id === exportData.from);
         if (!fromTreasury || fromTreasury.balance < amt) {
             addToast("رصيد غير كافٍ في الخزينة المصدر", "error");
@@ -246,7 +274,7 @@ const TreasuryPage: React.FC = () => {
                 batch.update(targetRef, { balance: increment(amt) });
                 
                 // Log income for target account
-                const targetTransRef = doc(collection(db, 'treasury_transactions'));
+                const targetTransRef = doc(collection(db, 'transactions'));
                 batch.set(targetTransRef, {
                     treasuryId: exportData.targetAccountId,
                     type: 'income',
@@ -258,7 +286,7 @@ const TreasuryPage: React.FC = () => {
             }
 
             // 3. Log export for source account
-            const exportTransRef = doc(collection(db, 'treasury_transactions'));
+            const exportTransRef = doc(collection(db, 'transactions'));
             batch.set(exportTransRef, {
                 treasuryId: exportData.from,
                 type: 'export',
@@ -270,12 +298,13 @@ const TreasuryPage: React.FC = () => {
             });
 
             await batch.commit();
+            api.logActivityEntry('تصدير مالي', `تصدير مبلغ ${amt} من الخزينة ${exportData.from} إلى ${exportData.dest}`);
             addToast("تم التصدير المالي بنجاح", "success");
             setIsExportModalOpen(false);
             setExportData({ ...exportData, amount: 0, dest: '', desc: '', targetAccountId: '' });
             await fetchData();
         } catch (err) { 
-            handleFirestoreError(err, OperationType.WRITE, 'treasury_transactions'); 
+            handleFirestoreError(err, OperationType.WRITE, 'transactions'); 
         } finally { 
             setIsSaving(false); 
         }
@@ -302,18 +331,23 @@ const TreasuryPage: React.FC = () => {
     }, [transactions, searchTerm, startDate, endDate, filterType]);
 
     const handleSaveTransaction = async (data: any) => {
+        const amount = parseFloat(data.amount);
+        if (amount <= 0) {
+            addToast("المبلغ يجب أن يكون أكبر من صفر", "error");
+            return;
+        }
+
         setIsSaving(true);
         try {
             const batch = writeBatch(db);
             const treasuryRef = doc(db, 'treasuries', data.treasuryId);
             
-            const amount = parseFloat(data.amount);
             const isIncome = data.type === 'income' || data.type === 'Income';
 
             // Use increment for atomic safety
             batch.update(treasuryRef, { balance: increment(isIncome ? amount : -amount) });
 
-            const transRef = doc(collection(db, 'treasury_transactions'));
+            const transRef = doc(collection(db, 'transactions'));
             
             const submitData = { ...data };
             if (submitData.id === undefined) delete submitData.id;
@@ -326,11 +360,12 @@ const TreasuryPage: React.FC = () => {
             });
 
             await batch.commit();
+            api.logActivityEntry('تسجيل حركة مالية', `تسجيل حركة ${isIncome ? 'إيداع' : 'سحب'} بقيمة ${amount}`);
             await fetchData();
             setIsModalOpen(false);
             addToast("تم تسجيل الحركة بنجاح", "success");
         } catch (e) {
-            handleFirestoreError(e, OperationType.WRITE, 'treasury_transactions');
+            handleFirestoreError(e, OperationType.WRITE, 'transactions');
         } finally {
             setIsSaving(false);
         }
@@ -385,8 +420,8 @@ const TreasuryPage: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
                         {loading ? (
                             Array(4).fill(0).map((_, i) => <TreasurySkeleton key={i} />)
-                        ) : treasuries.filter(t => t.type !== 'bank').length > 0 ? treasuries.filter(t => t.type !== 'bank').map(t => (
-                            <div key={t.id} className="bg-white dark:bg-slate-900 p-8 rounded-4xl border border-slate-100 dark:border-slate-800 shadow-premium relative group overflow-hidden">
+                        ) : treasuries.filter(t => t.type !== 'bank').length > 0 ? treasuries.filter(t => t.type !== 'bank').map((t, index) => (
+                            <div key={t.id || index} className="bg-white dark:bg-slate-900 p-8 rounded-4xl border border-slate-100 dark:border-slate-800 shadow-premium relative group overflow-hidden">
                                 <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform text-indigo-500 pointer-events-none"><Wallet size={120} /></div>
                                 <div className="flex justify-between items-start mb-6 relative z-20">
                                     <div className="flex items-center gap-4">
@@ -489,8 +524,8 @@ const TreasuryPage: React.FC = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y dark:divide-slate-800">
-                            {filteredTransactions.map(t => (
-                                <tr key={t.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                            {filteredTransactions.map((t, index) => (
+                                <tr key={t.id ? `${t.id}-${index}` : index} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                                     <td className="px-8 py-5">
                                         <div className="flex items-center gap-2 font-bold text-xs text-slate-600 dark:text-slate-400">
                                             <Calendar size={14} className="opacity-50"/>
@@ -567,11 +602,11 @@ const TreasuryPage: React.FC = () => {
                     <form onSubmit={handleUpdateTreasury} className="space-y-6">
                         <div>
                             <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ms-1">اسم الخزينة</label>
-                            <input type="text" required value={editingTreasury.name} onChange={e => setEditingTreasury({...editingTreasury, name: e.target.value})} className="w-full h-12 p-4 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl font-bold outline-none focus:border-indigo-500 text-slate-800 dark:text-white" />
+                            <input type="text" required value={editingTreasury.name || ''} onChange={e => setEditingTreasury({...editingTreasury, name: e.target.value})} className="w-full h-12 p-4 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl font-bold outline-none focus:border-indigo-500 text-slate-800 dark:text-white" />
                         </div>
                         <div>
-                            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ms-1">الرصيد الحالي</label>
-                            <input type="number" value={editingTreasury.balance} onChange={e => setEditingTreasury({...editingTreasury, balance: parseFloat(e.target.value) || 0})} className="w-full h-12 p-4 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl font-black outline-none focus:border-indigo-500 text-slate-800 dark:text-white" />
+                            <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ms-1 flex justify-between items-center"><span>الرصيد الحالي</span><span className="text-amber-500 text-[10px] bg-amber-50 dark:bg-amber-900/30 px-2 py-0.5 rounded-lg border border-amber-100 dark:border-amber-800/30">غير قابل للتعديل المباشر</span></label>
+                            <input type="number" disabled value={editingTreasury.balance ?? 0} className="w-full h-12 p-4 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-2xl font-black outline-none cursor-not-allowed opacity-70 text-slate-800 dark:text-white" />
                         </div>
                         <div>
                             <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2 ms-1">العملة</label>
@@ -735,22 +770,60 @@ const TreasuryPage: React.FC = () => {
                         const t = transactionToUndo;
                         
                         // Revert Balance
-                        if (t.type === 'transfer' || t.type === 'Transfer') {
-                            if (t.treasuryId && treasuries.some(tr => tr.id === t.treasuryId)) batch.update(doc(db, 'treasuries', t.treasuryId), { balance: increment(t.amount) });
-                            if (t.toTreasuryId && treasuries.some(tr => tr.id === t.toTreasuryId)) batch.update(doc(db, 'treasuries', t.toTreasuryId), { balance: increment(-t.amount) });
-                        } else if (t.type === 'export' || t.type === 'Export') {
-                            if (t.treasuryId && treasuries.some(tr => tr.id === t.treasuryId)) batch.update(doc(db, 'treasuries', t.treasuryId), { balance: increment(t.amount) });
+                        const undoAmt = Math.abs(parseFloat(String(t.amount)) || 0);
+                        const typeLower = (t.type || '').toLowerCase();
+                        
+                        if (typeLower === 'transfer') {
+                            if (t.treasuryId && treasuries.some(tr => tr.id === t.treasuryId)) batch.update(doc(db, 'treasuries', t.treasuryId), { balance: increment(undoAmt) });
+                            if (t.toTreasuryId && treasuries.some(tr => tr.id === t.toTreasuryId)) batch.update(doc(db, 'treasuries', t.toTreasuryId), { balance: increment(-undoAmt) });
+                        } else if (typeLower === 'export') {
+                            if (t.treasuryId && treasuries.some(tr => tr.id === t.treasuryId)) batch.update(doc(db, 'treasuries', t.treasuryId), { balance: increment(undoAmt) });
+                            if (t.destinationAccount && treasuries.some(tr => tr.id === t.destinationAccount)) batch.update(doc(db, 'treasuries', t.destinationAccount), { balance: increment(-undoAmt) });
                         } else {
                             if (t.treasuryId && treasuries.some(tr => tr.id === t.treasuryId)) {
                                 const tRef = doc(db, 'treasuries', t.treasuryId);
-                                const isIncome = t.type === 'income' || t.type === 'Income';
-                                batch.update(tRef, { balance: increment(isIncome ? -t.amount : t.amount) });
+                                const isIncome = typeLower === 'income';
+                                // If it was income, undoing it subtracts the amount.
+                                // If it was withdrawal/expense, undoing it adds the amount.
+                                batch.update(tRef, { balance: increment(isIncome ? -undoAmt : undoAmt) });
                             }
                         }
                         
-                        batch.delete(doc(db, 'treasury_transactions', t.id));
+                        // Create Reversal Transaction to keep ledger intact
+                        const reversalRef = doc(collection(db, 'transactions'));
+                        const reversalType = typeLower === 'income' ? 'withdrawal' : 
+                                             typeLower === 'export' ? 'income' : 
+                                             typeLower === 'transfer' ? 'transfer' : 'income';
+                        
+                        const reversalTx = {
+                            treasuryId: typeLower === 'transfer' ? (t.toTreasuryId || '') : (t.treasuryId || ''),
+                            toTreasuryId: typeLower === 'transfer' ? t.treasuryId : undefined,
+                            destinationAccount: typeLower === 'export' ? t.destinationAccount : undefined,
+                            type: reversalType,
+                            amount: undoAmt,
+                            category: 'إلغاء وتراجع',
+                            description: `إلغاء عملية سابقة - ${t.description || ''}`,
+                            isReversal: true,
+                            originalTransactionId: t.id,
+                            date: new Date().toISOString()
+                        };
+                        
+                        // Remove undefined fields
+                        Object.keys(reversalTx).forEach(k => (reversalTx as any)[k] === undefined && delete (reversalTx as any)[k]);
+                        
+                        batch.set(reversalRef, reversalTx);
+
+                        // Mark original transaction as reverted rather than deleting it
+                        batch.update(doc(db, 'transactions', t.id), { 
+                            isReverted: true,
+                            revertedAt: new Date().toISOString()
+                        });
+
                         await batch.commit();
-                        addToast('تم التراجع عن الحركة وعكس الرصيد بنجاح', 'success');
+                        api.logActivityEntry('تراجع عن حركة خزينة', `تراجع وعكس عملية سابقة بقيمة ${undoAmt}`);
+                        
+                        // Also Add an activity log entry via mockApi if needed (or we can just skip since we added a reversing transaction)
+                        addToast('تم التراجع عن الحركة وعكس الرصيد بنجاح وتسجيل ذلك في الدفاتر', 'success');
                         await fetchData();
                     } catch (e: any) {
                         addToast('تعذر التراجع، تأكد من وجود الخزينة', 'error');

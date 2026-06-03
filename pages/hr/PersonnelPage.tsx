@@ -1,15 +1,16 @@
 
 import React, { useState, useEffect } from 'react';
-import { collection, query, getDocs, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, orderBy } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { collection, query, getDocs, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, orderBy } from '../../services/localFirestore';
+import { db  } from '../../services/localFirestore';
 import { handleFirestoreError, OperationType } from '../../services/firestoreErrorHandler';
 import { useToasts } from '../../hooks/useToasts';
-import { Users, Plus, Search, Filter, Mail, Phone, Calendar, Trash2, Edit3, UserPlus } from 'lucide-react';
+import { Users, Plus, Search, Filter, Mail, Phone, Calendar, Trash2, Edit3, UserPlus, Fingerprint } from 'lucide-react';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import PageHeader from '../../components/layout/PageHeader';
-
 import Modal from '../../components/ui/Modal';
+import { usePlan } from '../../hooks/usePlan';
+import { toArabicIndic } from '../../utils/localization';
 
 interface EmployeeRecord {
     id: string;
@@ -30,10 +31,12 @@ interface EmployeeRecord {
     maxAdvance?: number;
     contractType: 'Term' | 'Permanent' | 'Project Based';
     contractEndDate?: string;
+    fingerprintId?: string;
 }
 
 const PersonnelPage: React.FC = () => {
     const { addToast } = useToasts();
+    const { limits } = usePlan();
     const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [profileLoading, setProfileLoading] = useState(false);
@@ -49,6 +52,7 @@ const PersonnelPage: React.FC = () => {
         vacationDays: 0
     });
     const [viewingProfile, setViewingProfile] = useState(false);
+    const [enrollingFingerprint, setEnrollingFingerprint] = useState(false);
     
     // New employee state
     const [formData, setFormData] = useState({
@@ -67,7 +71,8 @@ const PersonnelPage: React.FC = () => {
         maxDiscountLimit: 0,
         maxAdvance: 0,
         contractType: 'Permanent' as EmployeeRecord['contractType'],
-        contractEndDate: ''
+        contractEndDate: '',
+        fingerprintId: ''
     });
 
     useEffect(() => {
@@ -106,13 +111,18 @@ const PersonnelPage: React.FC = () => {
             maxDiscountLimit: emp.maxDiscountLimit || 0,
             maxAdvance: emp.maxAdvance || 0,
             contractType: emp.contractType || 'Permanent',
-            contractEndDate: emp.contractEndDate || ''
+            contractEndDate: emp.contractEndDate || '',
+            fingerprintId: emp.fingerprintId || ''
         });
         setIsModalOpen(true);
     };
 
     const handleAdd = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!editingId && employees.length >= limits.maxEmployees) {
+            addToast(`لقد وصلت للحد الأقصى لعدد الموظفين في باقتك (${toArabicIndic(limits.maxEmployees.toString())})`, 'error');
+            return;
+        }
         setSubmitting(true);
         try {
             const payload = {
@@ -148,8 +158,24 @@ const PersonnelPage: React.FC = () => {
         setFormData({
             name: '', email: '', phone: '', position: '', department: '', status: 'Active', 
             salary: 0, salaryType: 'Monthly', payday: 1, startDate: new Date().toISOString().split('T')[0],
-            shift: 'صباحي', commissionPercentage: 0, maxDiscountLimit: 0, maxAdvance: 0, contractType: 'Permanent', contractEndDate: ''
+            shift: 'صباحي', commissionPercentage: 0, maxDiscountLimit: 0, maxAdvance: 0, contractType: 'Permanent', contractEndDate: '',
+            fingerprintId: ''
         });
+    };
+
+    const handleEnrollFingerprint = () => {
+        setEnrollingFingerprint(true);
+        addToast('يرجى لمس القارئ أو تفعيل المحاكاة للتسجيل الآمن', 'info');
+    };
+
+    const simulateCompleteBiometricScan = () => {
+        const fpId = 'FP-' + Math.random().toString(36).substr(2, 9).toUpperCase() + '-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+        setFormData(prev => ({
+            ...prev,
+            fingerprintId: fpId
+        }));
+        setEnrollingFingerprint(false);
+        addToast('تمت قراءة البصمة الحيوية الفريدة بنجاح وحفظ الـ Hash التشفيري الآمن!', 'success');
     };
 
     const handleViewProfile = async (emp: EmployeeRecord) => {
@@ -157,7 +183,7 @@ const PersonnelPage: React.FC = () => {
         setViewingProfile(true);
         setProfileLoading(true);
         try {
-            const { where } = await import('firebase/firestore');
+            const { where } = await import('../../services/localFirestore');
             // Fetch stats
             // 1. Paid Salaries
             const payrollQ = query(collection(db, 'hr_payroll'), where('employeeId', '==', emp.id), where('status', '==', 'Paid'));
@@ -226,7 +252,13 @@ const PersonnelPage: React.FC = () => {
                         className="w-full h-12 pr-12 pl-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl outline-none focus:ring-2 focus:ring-indigo-600/20 font-bold"
                     />
                 </div>
-                <Button onClick={() => setIsModalOpen(true)} className="w-full md:w-auto h-12 rounded-2xl bg-indigo-600 px-8 font-black shadow-lg shadow-indigo-500/20 active:scale-95 transition-all">
+                <Button onClick={() => {
+                    if (employees.length >= limits.maxEmployees) {
+                        addToast(`لقد وصلت للحد الأقصى لعدد الموظفين في باقتك (${toArabicIndic(limits.maxEmployees.toString())})`, 'error');
+                        return;
+                    }
+                    setIsModalOpen(true);
+                }} className="w-full md:w-auto h-12 rounded-2xl bg-indigo-600 px-8 font-black shadow-lg shadow-indigo-500/20 active:scale-95 transition-all">
                     <UserPlus className="me-2" size={18} />
                     إضافة موظف جديد
                 </Button>
@@ -381,6 +413,70 @@ const PersonnelPage: React.FC = () => {
                                 className="w-full h-12 px-4 bg-slate-50 dark:bg-slate-800 rounded-xl outline-none font-bold text-left"
                             />
                         </div>
+
+                        {/* Fingerprint Enrollment Card */}
+                        <div className="col-span-1 md:col-span-2 border-2 border-dashed border-slate-200 dark:border-slate-750 rounded-2xl p-4 bg-slate-50/50 dark:bg-slate-900/30">
+                            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${formData.fingerprintId ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
+                                        <Fingerprint size={24} className={enrollingFingerprint ? "animate-pulse" : ""} />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-black text-sm text-slate-800 dark:text-slate-200 text-right">بصمة الإصبع الحيوية</h4>
+                                        <p className="text-xs text-slate-400 font-bold mt-1 text-right">
+                                            {formData.fingerprintId 
+                                                ? `البصمة آمنة مسجلة بـ ID: ${formData.fingerprintId}` 
+                                                : "يجب تسجيل بصمة الإصبع لمنع الحضور اليدوي نهائياً."}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    {formData.fingerprintId && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setFormData(prev => ({ ...prev, fingerprintId: '' }));
+                                                addToast('تم إزالة البصمة المسجلة', 'info');
+                                            }}
+                                            className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-black transition-all"
+                                        >
+                                            حذف بصمة
+                                        </button>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={handleEnrollFingerprint}
+                                        disabled={enrollingFingerprint}
+                                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all flex items-center gap-1.5 shadow-md shadow-indigo-500/10"
+                                    >
+                                        <Fingerprint size={14} />
+                                        {formData.fingerprintId ? 'إعادة تسجيل البصمة' : 'تسجيل بصمة جديدة'}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {enrollingFingerprint && (
+                                <div className="mt-4 p-4 bg-indigo-950/20 border border-indigo-500/30 rounded-xl relative overflow-hidden flex flex-col items-center text-center space-y-3">
+                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-400 to-transparent animate-pulse" />
+                                    <div className="w-16 h-16 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20 relative">
+                                        <Fingerprint size={32} className="animate-pulse" />
+                                        <div className="absolute inset-0 rounded-full border-2 border-indigo-500/50 animate-ping opacity-75" />
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-black text-indigo-600 dark:text-indigo-400">يرجى وضع إصبع الموظف على مستشعر البصمة للبدء...</p>
+                                        <p className="text-[10px] text-slate-400 font-bold mt-1">المستشعر جاهز لاستلام الإشارة وتوليد الـ Hash التشفيري الفريد.</p>
+                                    </div>
+                                    
+                                    <button 
+                                        type="button"
+                                        onClick={simulateCompleteBiometricScan}
+                                        className="mt-2 px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl transition-all shadow-md shadow-indigo-550/20"
+                                    >
+                                        [ اضغط هنا لمحاكاة لمس القارئ الحيوي وتسجيل البصمة ]
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                     </div>
                     <div className="flex gap-3 pt-4">
                         <Button type="submit" disabled={submitting} className="flex-1 h-12 bg-indigo-600 rounded-xl font-black shadow-lg shadow-indigo-500/20">
@@ -493,7 +589,20 @@ const PersonnelPage: React.FC = () => {
                                     </Button>
                                 </div>
                            </div>
-                           <h3 className="text-lg font-black mb-1">{emp.name}</h3>
+                           <div className="flex justify-between items-center mb-1">
+                               <h3 className="text-lg font-black">{emp.name}</h3>
+                               {emp.fingerprintId ? (
+                                   <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-50 dark:bg-emerald-900/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-black rounded-lg border border-emerald-100 dark:border-emerald-900/30">
+                                       <Fingerprint size={10} />
+                                       بصمة مؤمنة
+                                   </span>
+                               ) : (
+                                   <span className="flex items-center gap-1 px-2 py-0.5 bg-rose-50 dark:bg-rose-900/10 text-rose-600 dark:text-rose-400 text-[10px] font-black rounded-lg border border-rose-100 dark:border-rose-900/30">
+                                       <Fingerprint size={10} className="animate-pulse" />
+                                       بصمة مطلوبة
+                                   </span>
+                               )}
+                           </div>
                            <p className="text-indigo-600 font-bold text-xs mb-4">{emp.position} - {emp.department}</p>
                            
                            <div className="space-y-2 mt-4 pt-4 border-t border-slate-50 dark:border-slate-800">

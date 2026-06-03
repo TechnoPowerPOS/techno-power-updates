@@ -26,19 +26,23 @@ const QuickAction: React.FC<{ to: string, icon: any, label: string, color: strin
     </Link>
 );
 
-const StatCard: React.FC<{ label: string, value: string, icon: any, color: string }> = ({ label, value, icon: Icon, color }) => (
-    <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 flex items-center gap-4 transition-all hover:bg-white dark:hover:bg-slate-800 hover:shadow-xl hover:shadow-slate-200/50 dark:hover:shadow-none">
-        <div className={`p-3 rounded-2xl ${color} bg-opacity-10 dark:bg-opacity-20`}>
-            <Icon size={24} className={color.replace('bg-', 'text-').replace('-500', '-600')} />
+const StatCard: React.FC<{ label: string, value: string, icon: any, color: string }> = ({ label, value, icon: Icon, color }) => {
+    const textColor = color.replace('bg-', 'text-').replace('-500', '-600');
+    return (
+    <div className="bg-white dark:bg-slate-900 overflow-hidden relative shadow-sm hover:shadow-lg p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800/80 flex items-center justify-between gap-4 transition-all duration-300 group">
+        <div className={`absolute top-0 right-0 w-24 h-24 ${color} rounded-full blur-[2.5rem] opacity-20 -translate-y-1/2 translate-x-1/2 group-hover:scale-150 transition-transform duration-700`}></div>
+        <div className="relative z-10 flex flex-col justify-center">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2">{label}</p>
+            <p className="text-2xl font-black text-slate-800 dark:text-white leading-none tracking-tight">{value}</p>
         </div>
-        <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{label}</p>
-            <p className="text-xl font-black text-slate-800 dark:text-white">{value}</p>
+        <div className={`relative z-10 p-4 rounded-2xl ${color.replace('500', '50')} dark:${color.replace('500', '900/30')} rounded-[1.5rem] flex items-center justify-center shadow-inner`}>
+            <Icon size={24} className={textColor} />
         </div>
     </div>
-);
+)};
 
-export const useFilteredNavLinks = (settings: any, licenseInfo: any, isFree: boolean, userHasPermission: any) => {
+export const useFilteredNavLinks = (settings: any, licenseInfo: any, isFree: boolean, userHasPermission: any, updateCounter?: number) => {
+    const { user } = useAuth();
     return useMemo(() => {
         if (!settings) return [];
 
@@ -51,9 +55,12 @@ export const useFilteredNavLinks = (settings: any, licenseInfo: any, isFree: boo
             }
         });
 
-        const targetIds = (settings.homeGridItems && settings.homeGridItems.length > 0) 
-            ? settings.homeGridItems 
-            : fallbackIds;
+        const userHomeGrid = settings && user?.id ? localStorage.getItem(`pos_home_grid_${user.id}`) : null;
+        const targetIds = (userHomeGrid)
+            ? JSON.parse(userHomeGrid)
+            : (settings?.homeGridItems && settings.homeGridItems.length > 0)
+                ? settings.homeGridItems 
+                : fallbackIds;
 
         const flattenedLinks: NavLinkType[] = [];
         
@@ -102,7 +109,7 @@ export const useFilteredNavLinks = (settings: any, licenseInfo: any, isFree: boo
             if (indexB === -1) return -1;
             return indexA - indexB;
         });
-    }, [settings, userHasPermission, licenseInfo, isFree]);
+    }, [settings, userHasPermission, licenseInfo, isFree, updateCounter, user?.id]);
 };
 
 export const ModernDashboardItemWrapper: React.FC<{ item: any, t: any }> = ({ item, t }) => {
@@ -405,7 +412,12 @@ const BentoHomePage: React.FC<{ user: any, currentTime: Date, t: any, gridItems:
     return (
         <div className="animate-fadeIn p-4 md:p-8 space-y-6">
             {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+            <motion.div 
+               initial={{ opacity: 0, y: -20 }}
+               animate={{ opacity: 1, y: 0 }}
+               transition={{ duration: 0.5, ease: "easeOut" }}
+               className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8"
+            >
                 <div>
                     <h1 className="text-3xl md:text-5xl font-black text-slate-800 dark:text-white tracking-tight mb-2">
                         مرحباً بك، <span className="text-indigo-600 dark:text-indigo-400">{user?.name?.split(' ')[0] || 'مدير النظام'}</span>
@@ -421,13 +433,21 @@ const BentoHomePage: React.FC<{ user: any, currentTime: Date, t: any, gridItems:
                         <p className="text-xl font-black text-slate-800 dark:text-white">{currentTime.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</p>
                     </div>
                 </div>
-            </div>
+            </motion.div>
 
             {/* Bento Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-6 md:auto-rows-[160px]">
+            <motion.div 
+                initial="hidden"
+                animate="visible"
+                variants={{
+                    hidden: { opacity: 0 },
+                    visible: { opacity: 1, transition: { staggerChildren: 0.1 } }
+                }}
+                className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-6 md:auto-rows-[160px]"
+            >
                 
                 {/* Main Action - POS (Spans 2 cols, 2 rows) */}
-                <motion.div whileHover={{ scale: 0.98 }} className="md:col-span-2 md:row-span-2 group">
+                <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} whileHover={{ scale: 0.98 }} className="md:col-span-2 md:row-span-2 group">
                     <Link to="/pos" className="block w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-xl shadow-indigo-500/20">
                         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
                         <div className="relative z-10 h-full flex flex-col justify-between">
@@ -451,7 +471,7 @@ const BentoHomePage: React.FC<{ user: any, currentTime: Date, t: any, gridItems:
                 </motion.div>
 
                 {/* Dashboard Stats (Spans 2 cols, 1 row) */}
-                <motion.div whileHover={{ scale: 0.98 }} className="md:col-span-2 bg-white dark:bg-slate-900 rounded-[2.5rem] p-6 border border-slate-100 dark:border-slate-800 shadow-sm flex items-center justify-between group">
+                <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} whileHover={{ scale: 0.98 }} className="md:col-span-2 bg-white dark:bg-slate-900 rounded-[2.5rem] p-6 border border-slate-100 dark:border-slate-800 shadow-sm flex items-center justify-between group">
                     <div className="flex items-center gap-6">
                         <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-500 rounded-3xl flex items-center justify-center shadow-inner">
                             <TrendingUp size={32} />
@@ -467,7 +487,7 @@ const BentoHomePage: React.FC<{ user: any, currentTime: Date, t: any, gridItems:
                 </motion.div>
 
                 {/* Products Quick Link (Spans 1 col, 1 row) */}
-                <motion.div whileHover={{ scale: 0.95 }} className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group">
+                <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} whileHover={{ scale: 0.95 }} className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group">
                     <Link to="/products" className="w-full h-full flex flex-col justify-center items-center p-6 text-center z-10 relative">
                         <div className="w-14 h-14 bg-amber-50 dark:bg-amber-900/30 text-amber-500 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:-translate-y-2 group-hover:scale-110 group-hover:rotate-12 shadow-sm group-hover:shadow-amber-500/20">
                             <Package size={28} />
@@ -479,7 +499,7 @@ const BentoHomePage: React.FC<{ user: any, currentTime: Date, t: any, gridItems:
                 </motion.div>
 
                 {/* Customers Quick Link (Spans 1 col, 1 row) */}
-                <motion.div whileHover={{ scale: 0.95 }} className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group">
+                <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} whileHover={{ scale: 0.95 }} className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group">
                     <Link to="/customers" className="w-full h-full flex flex-col justify-center items-center p-6 text-center z-10 relative">
                         <div className="w-14 h-14 bg-pink-50 dark:bg-pink-900/30 text-pink-500 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:-translate-y-2 group-hover:scale-110 group-hover:-rotate-12 shadow-sm group-hover:shadow-pink-500/20">
                             <Users size={28} />
@@ -491,7 +511,7 @@ const BentoHomePage: React.FC<{ user: any, currentTime: Date, t: any, gridItems:
                 </motion.div>
 
                 {/* Purchases Quick Link (Spans 2 cols, 1 row) */}
-                <motion.div whileHover={{ scale: 0.98 }} className="md:col-span-2 bg-gradient-to-br from-slate-800 to-slate-900 rounded-[2.5rem] p-6 shadow-xl relative overflow-hidden group text-white">
+                <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} whileHover={{ scale: 0.98 }} className="md:col-span-2 bg-gradient-to-br from-slate-800 to-slate-900 rounded-[2.5rem] p-6 shadow-xl relative overflow-hidden group text-white">
                     <Link to="/purchases" className="w-full h-full flex items-center justify-between z-10 relative">
                         <div>
                             <div className="bg-white/10 w-fit p-3 rounded-2xl backdrop-blur-md mb-3 text-cyan-400">
@@ -507,7 +527,7 @@ const BentoHomePage: React.FC<{ user: any, currentTime: Date, t: any, gridItems:
                 </motion.div>
 
                 {/* Reports Link (Spans 1 col, 1 row) */}
-                <motion.div whileHover={{ scale: 0.95 }} className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group">
+                <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} whileHover={{ scale: 0.95 }} className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group">
                     <Link to="/reports" className="w-full h-full flex items-center justify-center p-6 z-10 relative">
                         <div className="flex flex-col items-center">
                            <div className="w-14 h-14 bg-blue-50 dark:bg-blue-900/30 text-blue-500 rounded-auto rounded-full flex items-center justify-center mb-3">
@@ -519,7 +539,7 @@ const BentoHomePage: React.FC<{ user: any, currentTime: Date, t: any, gridItems:
                 </motion.div>
 
                 {/* Settings Link (Spans 1 col, 1 row) */}
-                <motion.div whileHover={{ scale: 0.95 }} className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group">
+                <motion.div variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }} whileHover={{ scale: 0.95 }} className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm relative overflow-hidden group">
                     <Link to="/settings" className="w-full h-full flex items-center justify-center p-6 z-10 relative">
                         <div className="flex flex-col items-center">
                            <div className="w-14 h-14 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-auto rounded-full flex items-center justify-center mb-3 group-hover:rotate-180 transition-transform duration-700">
@@ -529,7 +549,7 @@ const BentoHomePage: React.FC<{ user: any, currentTime: Date, t: any, gridItems:
                         </div>
                     </Link>
                 </motion.div>
-            </div>
+            </motion.div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                  {/* Debts Link */}
@@ -595,13 +615,21 @@ const HomePage: React.FC = () => {
     const { licenseInfo } = useLicense();
     const { t } = useTranslation();
     const [currentTime, setCurrentTime] = useState(new Date());
+    const [gridUpdateCounter, setGridUpdateCounter] = useState(0);
 
     const isFree = licenseInfo?.type === 'Free';
-    const gridItems = useFilteredNavLinks(settings, licenseInfo, isFree, userHasPermission);
+    const gridItems = useFilteredNavLinks(settings, licenseInfo, isFree, userHasPermission, gridUpdateCounter);
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-        return () => clearInterval(timer);
+        
+        const handleUpdate = () => setGridUpdateCounter(c => c + 1);
+        window.addEventListener('home_grid_updated', handleUpdate);
+        
+        return () => {
+            clearInterval(timer);
+            window.removeEventListener('home_grid_updated', handleUpdate);
+        };
     }, []);
 
     if (!settings) return (

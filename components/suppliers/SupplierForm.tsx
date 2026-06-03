@@ -23,7 +23,8 @@ const SupplierForm: React.FC<SupplierFormProps> = ({ supplier, onSave, onCancel,
     address: '',
     debt: 0,
     creditLimit: 0,
-    userId: ''
+    userId: '',
+    companyName: ''
   });
 
   useEffect(() => {
@@ -40,7 +41,8 @@ const SupplierForm: React.FC<SupplierFormProps> = ({ supplier, onSave, onCancel,
         address: supplier.address || '',
         debt: supplier.debt || 0,
         creditLimit: supplier.creditLimit || 0,
-        userId: supplier.userId || ''
+        userId: supplier.userId || '',
+        companyName: supplier.companyName || ''
       });
     } else {
         setFormData({
@@ -51,7 +53,8 @@ const SupplierForm: React.FC<SupplierFormProps> = ({ supplier, onSave, onCancel,
             address: '',
             debt: 0,
             creditLimit: 0,
-            userId: ''
+            userId: '',
+            companyName: ''
         });
     }
   }, [supplier]);
@@ -79,24 +82,27 @@ const SupplierForm: React.FC<SupplierFormProps> = ({ supplier, onSave, onCancel,
           <input type="text" name="name" value={formData.name} onChange={handleChange} required className={inputStyle} />
         </div>
         <div>
-          <label className="block text-sm font-black text-slate-700 dark:text-slate-200">مسؤول التواصل</label>
-          <input type="text" name="contactPerson" value={formData.contactPerson} onChange={handleChange} required className={inputStyle} />
+          <label className="block text-sm font-black text-slate-700 dark:text-slate-200">الشركة التابعة لها <span className="text-red-500">*</span></label>
+          <input type="text" name="companyName" value={formData.companyName} onChange={handleChange} required className={inputStyle} placeholder="مثل: شركة التوريدات المحدودة" />
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-black text-slate-700 dark:text-slate-200">الهاتف</label>
-            <input type="tel" name="phone" value={formData.phone} onChange={handleChange} required className={inputStyle} />
-          </div>
+        <div>
+          <label className="block text-sm font-black text-slate-700 dark:text-slate-200">مسؤول التواصل</label>
+          <input type="text" name="contactPerson" value={formData.contactPerson} onChange={handleChange} required className={inputStyle} />
+        </div>
+        <div>
+          <label className="block text-sm font-black text-slate-700 dark:text-slate-200">الهاتف</label>
+          <input type="tel" name="phone" value={formData.phone} onChange={handleChange} required className={inputStyle} />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-black text-slate-700 dark:text-slate-200 flex items-center gap-1">
                 <CreditCard size={14} className="text-indigo-600" /> حد الائتمان (مسموح بالدين حتى)
             </label>
             <input type="number" name="creditLimit" value={formData.creditLimit} onChange={handleChange} className={inputStyle} />
           </div>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
              <label className="block text-sm font-black text-slate-700 dark:text-slate-200 flex items-center gap-1">
                  <UserIcon size={14} className="text-indigo-600"/> مرتبط بالموظف
@@ -106,6 +112,9 @@ const SupplierForm: React.FC<SupplierFormProps> = ({ supplier, onSave, onCancel,
                  {users.map(u => <option key={u.id} value={u.id}>{u.name} ({u.role?.name})</option>)}
              </select>
           </div>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {!supplier && (
               <div>
                 <label className="block text-sm font-black text-slate-700 dark:text-slate-200 flex items-center gap-1 text-emerald-600">

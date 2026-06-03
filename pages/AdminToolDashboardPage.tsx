@@ -254,49 +254,6 @@ const AdminToolDashboardPage: React.FC = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Actions Column */}
                     <div className="lg:col-span-1 space-y-6">
-                        <Card title="حالة النزاهة (Integrity)">
-                             <div className="flex items-center gap-4 mt-2">
-                                <div className={`p-3 rounded-xl ${!stats?.isTampered ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-orange-100 dark:bg-orange-900/30 text-orange-600'}`}>
-                                    <AlertTriangle size={28} />
-                                </div>
-                                <div>
-                                    <span className={`text-xl font-bold block ${!stats?.isTampered ? 'text-green-600' : 'text-orange-500'}`}>
-                                        {!stats?.isTampered ? 'Verified & Secure' : 'Compromised'}
-                                    </span>
-                                    <span className="text-xs text-slate-500 font-bold">Safe Cryptographic State</span>
-                                </div>
-                            </div>
-                        </Card>
-
-                        <Card title="إجراءات الحماية الخاصة">
-                            <div className="space-y-4">
-                                <div className="p-4 border rounded-xl dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
-                                    <h4 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                                        <Ban size={18} className="text-red-500"/>
-                                        إبطال ترخيص (Kill Switch)
-                                    </h4>
-                                    <p className="text-xs text-slate-500 mt-2 mb-4 leading-relaxed font-bold">
-                                        استخدم هذه الأداة لإيقاف ترخيص معين فوراً لمنعه من العمل على أي جهاز متصل.
-                                    </p>
-                                    <Button variant="danger" onClick={handleRevoke} disabled={stats?.isTampered} className="w-full">
-                                        إبطال الترخيص يدوياً
-                                    </Button>
-                                </div>
-                                <div className="p-4 border rounded-xl dark:border-slate-700 bg-indigo-50 dark:bg-indigo-900/10">
-                                    <h4 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                                        <Stethoscope size={18} className="text-indigo-500"/>
-                                        فحص النظام (Diagnostics)
-                                    </h4>
-                                    <p className="text-xs text-slate-500 mt-2 mb-4 leading-relaxed font-bold">
-                                        تشغيل فحص شامل للبحث عن أخطاء أو بيانات يتيمة أو محاولات عبث بالنظام.
-                                    </p>
-                                    <Button variant="secondary" onClick={runDiagnostics} isLoading={isRunningDiagnostics} className="w-full">
-                                        تشغيل الفحص الشامل
-                                    </Button>
-                                </div>
-                            </div>
-                        </Card>
-
                         <Card title="إعدادات النظام العامة والواجهة">
                             <div className="space-y-4">
                                 <p className="text-xs text-slate-500 font-bold mb-4">
@@ -314,65 +271,6 @@ const AdminToolDashboardPage: React.FC = () => {
 
                     {/* Report & Logs Column */}
                     <div className="lg:col-span-2 space-y-6">
-                        <Card title="نشاط النظام (التراخيص)" className="shadow-premium border-none">
-                            <div className="h-64 w-full mt-4" dir="ltr">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <LineChart data={[
-                                        { name: 'يناير', active: 10, new: 5 },
-                                        { name: 'فبراير', active: 15, new: 8 },
-                                        { name: 'مارس', active: 20, new: 10 },
-                                        { name: 'أبريل', active: 25, new: 12 },
-                                        { name: 'مايو', active: stats?.activeLicensesCount || 30, new: stats?.licensesCount || 15 },
-                                        { name: 'يونيو', active: stats?.activeLicensesCount || 30, new: stats?.licensesCount || 15 },
-                                    ]}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94A3B8', fontSize: 12}} />
-                                        <YAxis axisLine={false} tickLine={false} tick={{fill: '#94A3B8', fontSize: 12}} />
-                                        <Tooltip 
-                                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)'}}
-                                            labelStyle={{fontWeight: 'bold', color: '#1E293B', marginBottom: '4px'}}
-                                        />
-                                        <Line type="monotone" name="تراخيص نشطة" dataKey="active" stroke="#10B981" strokeWidth={3} dot={{r: 4, strokeWidth: 2}} activeDot={{r: 6}} />
-                                        <Line type="monotone" name="تراخيص جديدة" dataKey="new" stroke="#6366F1" strokeWidth={3} dot={{r: 4, strokeWidth: 2}} activeDot={{r: 6}} />
-                                    </LineChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </Card>
-
-                        {/* Diagnostic Report Area */}
-                        {healthReport && (
-                            <Card title="تقرير فحص النظام" className="animate-slideDown">
-                                <div className={`p-4 rounded-lg mb-4 flex items-center gap-3 ${
-                                    healthReport.status === 'HEALTHY' ? 'bg-green-100 text-green-800' : 
-                                    healthReport.status === 'WARNING' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
-                                }`}>
-                                    {healthReport.status === 'HEALTHY' ? <CheckCircle size={24}/> : <AlertTriangle size={24}/>}
-                                    <div>
-                                        <span className="font-bold block">الحالة العامة: {healthReport.status === 'HEALTHY' ? 'سليم' : healthReport.status === 'WARNING' ? 'تحذير' : 'حرج'}</span>
-                                        <span className="text-xs">تم الفحص: {new Date(healthReport.checkedAt).toLocaleString()}</span>
-                                    </div>
-                                </div>
-                                
-                                {healthReport.issues.length === 0 ? (
-                                    <p className="text-center text-slate-500 py-4">لم يتم العثور على أي مشاكل. النظام يعمل بكفاءة.</p>
-                                ) : (
-                                    <ul className="space-y-3">
-                                        {healthReport.issues.map((issue, idx) => (
-                                            <li key={idx} className="p-3 border rounded-lg bg-white dark:bg-slate-800">
-                                                <div className="flex items-center justify-between mb-1">
-                                                    <span className="font-semibold text-slate-800 dark:text-white flex items-center gap-2">
-                                                        <XCircle size={16} className="text-red-500"/> {issue.message}
-                                                    </span>
-                                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700">{issue.severity}</span>
-                                                </div>
-                                                <p className="text-xs text-slate-500 ms-6">{issue.details}</p>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                            </Card>
-                        )}
-
                         <Card title="سجلات التدقيق الأمني (Audit Logs)">
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm text-start">

@@ -15,6 +15,8 @@ import { NAV_LINKS, NavLinkType } from '../../constants';
 import { useTranslation } from '../../hooks/useTranslation';
 import { getPlanLimits } from '../../utils/planPermissions';
 import { getCurrentBranchId, getBranches } from '../../services/branchService';
+import { useShift } from '../../hooks/useShift';
+import { PlusCircle } from 'lucide-react';
 
 interface HeaderProps {
   toggleSidebar?: () => void;
@@ -30,6 +32,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const { currentShift } = useShift();
 
   const [globalLogo, setGlobalLogo] = useState<string | null>(null);
   useEffect(() => {
@@ -130,7 +133,7 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
 
   return (
     <>
-    <div className="fixed top-0 left-0 right-0 z-[60] flex justify-center p-4 md:p-6 pointer-events-none">
+    <div className="fixed top-0 left-0 right-0 z-[160] flex justify-center p-4 md:p-6 pointer-events-none">
         <header 
             ref={headerRef} 
             className="w-full max-w-7xl h-16 glass-panel rounded-full flex items-center justify-between px-6 shadow-premium pointer-events-auto border-white/60 dark:border-white/10"
@@ -239,6 +242,15 @@ const Header: React.FC<HeaderProps> = ({ toggleSidebar }) => {
             </div>
 
             <div className="flex items-center gap-1 md:gap-3">
+                {settings?.enableShiftManagement && !currentShift && (
+                    <button 
+                        onClick={() => navigate('/pos')} 
+                        className="hidden sm:flex items-center gap-2 px-4 py-2 bg-emerald-100 text-emerald-700 rounded-full text-xs font-black hover:bg-emerald-200 transition-all border border-emerald-200 animate-pulse"
+                    >
+                        <PlusCircle size={14} /> فتح وردية جديدة
+                    </button>
+                )}
+
                 {licenseInfo?.status !== 'LICENSED' && (
                     <Link to="/pricing" className="hidden lg:flex items-center gap-2 px-4 py-2 bg-amber-100 text-amber-700 rounded-full text-xs font-black hover:bg-amber-200 transition-all">
                         <Crown size={14} /> ترقية الاشتراك

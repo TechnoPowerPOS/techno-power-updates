@@ -37,7 +37,7 @@ export const AdminAuthProvider: React.FC<{ children: ReactNode }> = ({ children 
       fired = true;
       clearTimeout(safetyTimeout);
       const sessionActive = secureStorage.getItem<boolean>(ADMIN_AUTH_STORAGE_KEY);
-      const isAdminEmail = user?.email === 'm7mdshipl@gmail.com' || user?.email === 'admin@techno.com';
+      const isAdminEmail = user?.email === 'm7mdshipl@gmail.com';
 
       if (sessionActive && isAdminEmail) {
         setIsAdminLoggedIn(true);
@@ -57,16 +57,12 @@ export const AdminAuthProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   const login = async (email: string, codes: string[], securityAnswer: string): Promise<{ status: AdminAuthStatus, message: string }> => {
     // Check email requirement
-    if (email !== 'm7mdshipl@gmail.com' && email !== 'admin@techno.com') {
+    if (email !== 'm7mdshipl@gmail.com') {
       return { status: 'failed', message: 'الايميل غير مصرح له بالدخول للادارة.' };
     }
 
     try {
-      // 1. Verify codes and security answer first
-      const result = await adminToolService.verifyCredentials(codes, securityAnswer);
-      if (result.status !== 'success') return result;
-
-      // 2. Official Firebase Sign-in with Google to unlock Cloud Permissions
+      // Official Firebase Sign-in with Google to unlock Cloud Permissions
       // We check if already signed in with the correct account
       if (auth.currentUser?.email !== email) {
         const provider = new GoogleAuthProvider();
@@ -75,9 +71,14 @@ export const AdminAuthProvider: React.FC<{ children: ReactNode }> = ({ children 
         // Wrap signInWithPopup in a timeout
         const userCredential = await Promise.race([
           signInWithPopup(auth, provider),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Popup Timeout: يرجى التأكد من السماح بالرسائل المنبثقة أو فتح التطبيق في المتصفح')), 15000))
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Popup Timeout: يرجى التأكد من السماح بالرسائل المنبثقة أو فتح التطبيق في المتصفح')), 30000))
         ]) as any;
         
+        if (userCredential.user.email !== 'm7mdshipl@gmail.com') {
+             await signOut(auth);
+             return { status: 'failed', message: 'يرجى تسجيل الدخول بحساب m7mdshipl@gmail.com فقط.' };
+        }
+
         // Ensure admin document exists for rules to work
         try {
           await setDoc(doc(db, 'admins', userCredential.user.uid), {
@@ -92,7 +93,7 @@ export const AdminAuthProvider: React.FC<{ children: ReactNode }> = ({ children 
 
       setIsAdminLoggedIn(true);
       secureStorage.setItem(ADMIN_AUTH_STORAGE_KEY, true);
-      return result;
+      return { status: 'success', message: 'تم التحقق بنجاح.' };
     } catch (error: any) {
       console.error("Firebase Login Error:", error);
       return { status: 'failed', message: 'فشل تسجيل الدخول بجوجل. يرجى التأكد من البريد الإلكتروني.' };

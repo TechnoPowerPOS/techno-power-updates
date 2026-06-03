@@ -1,27 +1,44 @@
 import React from 'react';
+import { motion } from 'motion/react';
 
 const SplashScreen: React.FC = () => {
   return (
-    <div className="flex flex-col items-center justify-center h-screen w-screen bg-gray-100 dark:bg-slate-950 text-gray-800 dark:text-gray-200">
-      <div className="flex flex-col items-center gap-4 animate-fadeIn">
-        {/* Icon with a new bounce animation */}
-        <div className="w-28 h-28 bg-blue-600 rounded-full flex items-center justify-center shadow-lg animate-bounceIn">
-            <span className="text-6xl text-white" role="img" aria-label="Lightning bolt icon">⚡</span>
+    <div className="flex flex-col items-center justify-center h-screen w-screen bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-white" dir="rtl">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="flex flex-col items-center gap-6"
+      >
+        <motion.div 
+          animate={{ 
+            y: [0, -15, 0],
+            boxShadow: [
+              "0px 4px 15px rgba(37, 99, 235, 0.2)",
+              "0px 20px 25px rgba(37, 99, 235, 0.4)",
+              "0px 4px 15px rgba(37, 99, 235, 0.2)"
+            ]
+          }}
+          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+          className="w-24 h-24 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-3xl flex items-center justify-center shadow-xl"
+        >
+            <span className="text-5xl text-white">⚡</span>
+        </motion.div>
+        
+        <div className="text-center mt-2">
+            <h1 className="text-3xl font-black tracking-tight mb-2">تكنو باور</h1>
+            <p className="text-sm font-bold text-slate-500 dark:text-slate-400">نظام إدارة المبيعات والمخزون</p>
         </div>
         
-        {/* App name and new tagline */}
-        <div className="text-center mt-4">
-            <h1 className="text-4xl font-extrabold tracking-tight">تكنو باور POS</h1>
-            <p className="text-lg text-gray-500 dark:text-gray-400 mt-2">نقطة البيع الحديثة لعملك</p>
+        <div className="w-48 h-1 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden mt-6">
+            <motion.div 
+              initial={{ x: "100%" }}
+              animate={{ x: "-100%" }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+              className="h-full bg-blue-500 rounded-full w-1/2"
+            />
         </div>
-        
-        {/* Dynamic loading bar */}
-        <div className="w-64 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden mt-8">
-            <div className="h-full bg-blue-500 rounded-full animate-loading-bar-fill"></div>
-        </div>
-
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">...جاري تهيئة بيئة العمل</p>
-      </div>
+      </motion.div>
     </div>
   );
 };

@@ -27,6 +27,7 @@ const STORAGE_KEY = 'tp_license_key';
 const TYPE_KEY = 'tp_license_type';
 const DEVICE_ID_KEY = 'tp_device_id';
 const IDENTITY_KEY = 'tp_user_identity';
+const SECURE_STORAGE_KEY_V2 = 'tp_license_key_v2_poly';
 
 const getBranchKey = (key: string) => {
     const branchId = getCurrentBranchId();
@@ -104,6 +105,7 @@ export const activateTrial = async (): Promise<{ success: boolean; message: stri
         localStorage.setItem(getBranchKey(STORAGE_KEY), 'TRIAL-PLAN-' + deviceId);
         secureStorage.setItem(getBranchKey(STORAGE_KEY), 'TRIAL-PLAN-' + deviceId);
         secureStorage.setItem(getBranchKey(TYPE_KEY), 'Trial'); // Make sure we also update TYPE_KEY securely
+        localStorage.setItem('tp_trial_ever_used', 'true');
         return { success: true, message: `تم تفعيل التجربة المجانية لمدة ${trialDays} أيام بنجاح.` };
     } catch (e) {
         handleFirestoreError(e, OperationType.WRITE, `trials/${deviceId}`);
@@ -198,10 +200,20 @@ export const activateLicense = async (key: string): Promise<{ success: boolean; 
 
         if (identity?.id) {
             await logCustomerActivity(identity.id, 'تفعيل ترخيص', `تم تفعيل المفتاح: ${cleanKey} (نوع: ${data.type})`);
+            
+            // Auto-confirm users with paid licenses
+            if (data.type !== 'Free' && data.type !== 'Trial') {
+                try {
+                    await updateDoc(doc(db, 'customers', identity.id), { confirmed: true });
+                } catch (ce) {
+                    console.warn("Failed to auto-confirm customer", ce);
+                }
+            }
         }
 
-        secureStorage.setItem(getBranchKey(STORAGE_KEY), cleanKey);
-        secureStorage.setItem(getBranchKey(TYPE_KEY), data.type);
+        const secureKey = getBranchKey(SECURE_STORAGE_KEY_V2);
+        secureStorage.setItem(secureKey, cleanKey);
+        secureStorage.setItem(secureKey.replace('key', 'type'), data.type);
         localStorage.setItem(getBranchKey(STORAGE_KEY), cleanKey);
         localStorage.setItem(getBranchKey(TYPE_KEY), data.type);
         localStorage.setItem('tp_last_verified_online', new Date().getTime().toString());
@@ -213,19 +225,47 @@ export const activateLicense = async (key: string): Promise<{ success: boolean; 
     }
 };
 
-const attemptAutoRepair = async (rawKey: string, deviceId: string, storageKey: string): Promise<string | null | 'tampered'> => {
+const attemptAutoRepair = async (rawKey: string, deviceId: string, storageKey: string): Promise<string | null | 'tampered' | 'mismatch' | 'invalid' | 'expired'> => {
     try {
         const snap = await getDocFromServer(doc(db, 'licenses', rawKey));
         if (snap.exists()) {
             const data = snap.data() as any;
+            if (data.status === 'blocked') {
+                return 'invalid';
+            }
+            if (data.expiresAt && new Date(data.expiresAt) < new Date()) {
+                return 'expired';
+            }
             const devIds = data.deviceIds || [];
             if (data.status === 'active' && (devIds.includes(deviceId) || data.deviceId === deviceId)) {
                 secureStorage.setItem(storageKey, rawKey);
                 secureStorage.setItem(storageKey.replace(STORAGE_KEY, TYPE_KEY), data.type);
                 return rawKey;
             }
+
+            // Self-repair: Auto add deviceId if there are empty slots!
+            const maxDevices = data.maxDevices || 1;
+            if (data.status === 'active' && devIds.length < maxDevices) {
+                try {
+                    const updatedDevIds = [...devIds];
+                    if (!updatedDevIds.includes(deviceId)) {
+                        updatedDevIds.push(deviceId);
+                    }
+                    await updateDoc(doc(db, 'licenses', rawKey), {
+                        deviceIds: updatedDevIds,
+                        deviceId: deviceId // fallback
+                    });
+                    secureStorage.setItem(storageKey, rawKey);
+                    secureStorage.setItem(storageKey.replace(STORAGE_KEY, TYPE_KEY), data.type);
+                    return rawKey;
+                } catch (updateErr) {
+                    console.error("Auto Repair failed to add deviceId", updateErr);
+                }
+            }
+
+            return 'mismatch';
         }
-        return 'tampered';
+        return 'invalid';
     } catch (e) {
         return 'network_error';
     }
@@ -233,25 +273,48 @@ const attemptAutoRepair = async (rawKey: string, deviceId: string, storageKey: s
 
 export const checkLicenseStatus = async (): Promise<{ active: boolean; status: string; type?: LicenseType; expiresAt?: string; activatedAt?: string; customerId?: string }> => {
     const rawKey = localStorage.getItem(getBranchKey(STORAGE_KEY));
-    let key = secureStorage.getItem<string>(getBranchKey(STORAGE_KEY));
-    let cachedType = secureStorage.getItem<LicenseType>(getBranchKey(TYPE_KEY)) || localStorage.getItem(getBranchKey(TYPE_KEY)) as LicenseType;
+    const secureKeyName = getBranchKey(SECURE_STORAGE_KEY_V2);
+    let key = secureStorage.getItem<string>(secureKeyName);
+    
+    // Fallback: If new secure key is missing but old one existed, migration
+    if (!key) {
+        key = secureStorage.getItem<string>(getBranchKey(STORAGE_KEY));
+    }
+
+    let cachedType = secureStorage.getItem<LicenseType>(secureKeyName.replace('key', 'type')) || 
+                    secureStorage.getItem<LicenseType>(getBranchKey(TYPE_KEY)) || 
+                    localStorage.getItem(getBranchKey(TYPE_KEY)) as LicenseType;
+    
     const deviceId = getDeviceId();
 
-    // Check for tampering: if rawKey exists but secureStorage.getItem returned null
+    // Check for tampering: if rawKey exists but secure record is missing/broken
+    // We only flag 'tampered' if attemptAutoRepair also fails.
     if (rawKey && !key && rawKey !== 'FREE-PLAN-ACTIVE' && !rawKey.startsWith('TRIAL-PLAN-')) {
         if (typeof navigator !== 'undefined' && !navigator.onLine) {
             key = rawKey; // Fallback to rawKey offline
         } else {
+            // Attempt to repair by signing in anonymously if needed to fetch from firestore
+            if (!auth.currentUser) {
+                try {
+                    await signInAnonymously(auth);
+                } catch (se) {
+                    console.warn("Failed anonymous sign-in for repair", se);
+                }
+            }
+
             const repairResult = await Promise.race([
-                attemptAutoRepair(rawKey, deviceId, getBranchKey(STORAGE_KEY)),
+                attemptAutoRepair(rawKey, deviceId, secureKeyName),
                 new Promise((_, reject) => setTimeout(() => reject(new Error('Auto Repair Timeout')), 8000))
-            ]) as any;
+            ]).catch(e => {
+                console.error("Repair race error:", e);
+                return 'network_error';
+            }) as any;
             
             if (repairResult === 'network_error' || repairResult instanceof Error) {
-                 // Temporary fail-open for network errors so we don't lock offline users
                  key = rawKey; 
-            } else if (repairResult === 'tampered') {
-                 return { active: false, status: 'tampered' };
+            } else if (repairResult === 'tampered' || repairResult === 'mismatch' || repairResult === 'invalid' || repairResult === 'expired') {
+                 // Final attempt: if it's a known admin email just allow it or if it's a dev key
+                 return { active: false, status: repairResult };
             } else {
                  key = repairResult;
             }
@@ -276,8 +339,8 @@ export const checkLicenseStatus = async (): Promise<{ active: boolean; status: s
             ]) as any;
             if (repairResult === 'network_error' || repairResult instanceof Error) {
                 key = rawMainKey;
-            } else if (repairResult === 'tampered') {
-                return { active: false, status: 'tampered' };
+            } else if (repairResult === 'tampered' || repairResult === 'mismatch' || repairResult === 'invalid' || repairResult === 'expired') {
+                return { active: false, status: repairResult };
             } else {
                 key = repairResult;
             }
@@ -541,6 +604,8 @@ export const saveUserIdentity = async (identity: any): Promise<UserIdentity> => 
     if (!auth.currentUser) {
         try {
             await signInAnonymously(auth);
+            // Wait a moment for the token to be ready
+            await new Promise(r => setTimeout(r, 500));
         } catch (e) {
             console.warn("Failed to sign in anonymously before saving identity", e);
         }
@@ -565,6 +630,8 @@ export const updateUserIdentity = async (updates: Partial<UserIdentity>): Promis
     if (!auth.currentUser) {
         try {
             await signInAnonymously(auth);
+            // Wait a moment for the token to be ready
+            await new Promise(r => setTimeout(r, 500));
         } catch (e) {
             console.warn("Failed to sign in anonymously before updating identity", e);
         }
@@ -574,10 +641,11 @@ export const updateUserIdentity = async (updates: Partial<UserIdentity>): Promis
     if (!user || !user.id) return null;
     const deviceId = getDeviceId();
     const authUid = auth.currentUser?.uid || null;
-    user = { ...user, ...updates, deviceId, authUid };
+    const updatedAt = new Date().toISOString();
+    user = { ...user, ...updates, deviceId, authUid, updatedAt };
     const path = `customers/${user.id}`;
     try {
-        await setDoc(doc(db, 'customers', user.id), { ...updates, deviceId, authUid }, { merge: true });
+        await setDoc(doc(db, 'customers', user.id), { ...updates, deviceId, authUid, updatedAt }, { merge: true });
     } catch (e) {
         handleFirestoreError(e, OperationType.WRITE, path);
     }

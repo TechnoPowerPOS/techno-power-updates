@@ -83,7 +83,7 @@ const FinancialAccountsPage: React.FC = () => {
     const [selectedHistoryAccount, setSelectedHistoryAccount] = useState<Treasury | null>(null);
     const [historyTransactions, setHistoryTransactions] = useState<any[]>([]);
     const [editingAccount, setEditingAccount] = useState<Treasury | null>(null);
-    const [formData, setFormData] = useState({ name: '', balance: 0, currency: 'SAR' });
+    const [formData, setFormData] = useState({ name: '', balance: 0, currency: 'EGP' });
     const [searchTerm, setSearchTerm] = useState('');
 
     const fetchAccounts = async () => {
@@ -141,7 +141,7 @@ const FinancialAccountsPage: React.FC = () => {
         addToast(editingAccount ? 'تم تعديل الحساب' : 'تم إضافة حساب جديد', 'success');
         setIsModalOpen(false);
         setEditingAccount(null);
-        setFormData({ name: '', balance: 0, currency: 'SAR' });
+        setFormData({ name: '', balance: 0, currency: 'EGP' });
         fetchAccounts();
     };
 
@@ -212,7 +212,7 @@ const FinancialAccountsPage: React.FC = () => {
                         />
                     </div>
                     <Button onClick={() => navigate('/reports')} variant="secondary" className="flex-1 md:flex-none rounded-2xl font-black h-14 px-8"><Activity size={18} className="me-2"/> تحليل الميزانية</Button>
-                    <Button onClick={() => { setEditingAccount(null); setFormData({ name: '', balance: 0, currency: 'SAR' }); setIsModalOpen(true); }} className="flex-1 md:flex-none rounded-2xl font-black h-14 px-10 shadow-2xl shadow-indigo-500/30">إضافة حساب مالي</Button>
+                    <Button onClick={() => { setEditingAccount(null); setFormData({ name: '', balance: 0, currency: 'EGP' }); setIsModalOpen(true); }} className="flex-1 md:flex-none rounded-2xl font-black h-14 px-10 shadow-2xl shadow-indigo-500/30">إضافة حساب مالي</Button>
                 </div>
             </div>
 

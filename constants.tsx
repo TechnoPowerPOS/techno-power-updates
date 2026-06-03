@@ -1,9 +1,10 @@
 
 import {
   LayoutDashboard, ShoppingCart, Package, DollarSign, Users, Settings, LucideIcon, Truck, Building, Banknote, Warehouse, ArrowRightLeft, LifeBuoy, HelpCircle, RefreshCcw, RefreshCw, BarChart3, UserCheck, Database, FileText, Smile, Star, BrainCircuit, TrendingUp, UserX, Sparkles, Home, Briefcase, PieChart, Calculator, MessageCircle, Info, Download, Shield, ClipboardList, PenTool, HandCoins, Scale, CreditCard, Globe,
-  UserCog, Clock, Wallet, Wrench, GitMerge, Calendar, Key, Timer, Factory, List, ListChecks, Coins, Building2, Send
+  UserCog, Clock, Wallet, Wrench, GitMerge, Calendar, Key, Timer, Factory, List, ListChecks, Coins, Building2, Send, Fingerprint
 } from 'lucide-react';
 import type { PermissionKey } from './types';
+import type { PlanLimits } from './utils/planPermissions';
 
 export type NavLinkType = {
   id: string; 
@@ -36,11 +37,12 @@ export const NAV_LINKS: (NavLinkType | NavLinkGroup)[] = [
     id: 'inventory_purchases', t_key: 'المخزون والمشتريات', icon: Package, color: 'text-orange-600',
     children: [
       { id: 'products', t_key: 'المنتجات', href: '/products', icon: Package, permission: 'manage_products', color: 'text-orange-600', iconBgColor: 'bg-orange-600' },
+      { id: 'categories', t_key: 'إدارة الفئات', href: '/categories', icon: List, permission: 'manage_products', color: 'text-amber-600', iconBgColor: 'bg-amber-600', planKey: 'hasCategories' },
       { id: 'warehouses', t_key: 'المستودعات', href: '/warehouses', icon: Warehouse, permission: 'manage_products', color: 'text-orange-700', iconBgColor: 'bg-orange-700' },
       { id: 'purchases', t_key: 'أوامر الشراء', href: '/purchases', icon: Truck, permission: 'manage_purchases', color: 'text-blue-600', iconBgColor: 'bg-blue-600' },
       { id: 'purchase_returns', t_key: 'مرتجعات الشراء', href: '/purchase-returns', icon: RefreshCw, permission: 'manage_purchase_returns', color: 'text-rose-600', iconBgColor: 'bg-rose-600' },
-      { id: 'inventory_audit', t_key: 'جرد المخزون', href: '/inventory-audit', icon: ClipboardList, permission: 'manage_products', color: 'text-slate-600', iconBgColor: 'bg-slate-600' },
-      { id: 'stock_transfer', t_key: 'التحويل المخزني', href: '/stock-transfer', icon: ArrowRightLeft, permission: 'manage_products', color: 'text-indigo-600', iconBgColor: 'bg-indigo-600' },
+      { id: 'inventory_audit', t_key: 'جرد المخزون', href: '/inventory-audit', icon: ClipboardList, permission: 'manage_products', color: 'text-slate-600', iconBgColor: 'bg-slate-600', planKey: 'hasInventoryAudit' },
+      { id: 'stock_transfer', t_key: 'التحويل المخزني', href: '/stock-transfer', icon: ArrowRightLeft, permission: 'manage_products', color: 'text-indigo-600', iconBgColor: 'bg-indigo-600', planKey: 'hasStockTransfer' },
     ]
   },
 
@@ -48,6 +50,7 @@ export const NAV_LINKS: (NavLinkType | NavLinkGroup)[] = [
     id: 'sales_crm', t_key: 'المبيعات والعملاء', icon: DollarSign, color: 'text-rose-600',
     children: [
       { id: 'sales', t_key: 'قيود المبيعات', href: '/sales', icon: DollarSign, permission: 'view_sales', color: 'text-emerald-600', iconBgColor: 'bg-emerald-600' },
+      { id: 'sales_drafts', t_key: 'مسودات الفواتير المعلقة', href: '/sales-drafts', icon: FileText, permission: 'view_sales', color: 'text-amber-600', iconBgColor: 'bg-amber-600', planKey: 'hasSalesDrafts' },
       { id: 'sales_returns', t_key: 'مرتجعات البيع', href: '/sales-returns', icon: RefreshCcw, permission: 'manage_sales_returns', color: 'text-rose-600', iconBgColor: 'bg-rose-600' },
       { id: 'installments', t_key: 'الأقساط', href: '/installments', icon: CreditCard, permission: 'manage_installments', color: 'text-indigo-600', iconBgColor: 'bg-indigo-600' },
       { id: 'crm', t_key: 'إدارة العملاء (CRM)', href: '/crm', icon: Users, permission: 'manage_customers', color: 'text-purple-600', iconBgColor: 'bg-purple-600' },
@@ -66,6 +69,7 @@ export const NAV_LINKS: (NavLinkType | NavLinkGroup)[] = [
       { id: 'financial_accounts', t_key: 'الحسابات والذمم', href: '/financial-accounts', icon: Building, permission: 'view_treasury', color: 'text-emerald-700', iconBgColor: 'bg-emerald-700', planKey: 'hasAccountStatements' },
       { id: 'financial_settlement', t_key: 'تسويات مالية', href: '/financial-settlement', icon: Scale, permission: 'view_treasury', color: 'text-teal-600', iconBgColor: 'bg-teal-600', planKey: 'hasFinancialSettlements' },
       { id: 'accounting_tools', t_key: 'أدوات محاسبية', href: '/tools/accounting', icon: Calculator, permission: 'view_dashboard', color: 'text-slate-600', iconBgColor: 'bg-slate-600', planKey: 'hasAccounting' },
+      { id: 'cashier_shifts_log', t_key: 'سجل ورديات الكاشير', href: '/shifts-log', icon: Clock, permission: 'view_treasury', color: 'text-amber-600', iconBgColor: 'bg-amber-600', planKey: 'hasCashierShifts' },
     ]
   },
 
@@ -76,6 +80,7 @@ export const NAV_LINKS: (NavLinkType | NavLinkGroup)[] = [
       { id: 'hr_payroll', t_key: 'الرواتب والأجور', href: '/employee-management?tab=payroll', icon: Banknote, permission: 'manage_hr_personnel', color: 'text-emerald-600', iconBgColor: 'bg-emerald-600', planKey: 'hasHRSalaries' },
       { id: 'hr_requests', t_key: 'الطلبات والإجازات', href: '/employee-management?tab=requests', icon: Send, permission: 'manage_hr_personnel', color: 'text-blue-600', iconBgColor: 'bg-blue-600', planKey: 'hasHRVacations' },
       { id: 'hr_performance', t_key: 'الأداء والعمولات', href: '/employee-management?tab=performance', icon: TrendingUp, permission: 'manage_hr_personnel', color: 'text-purple-600', iconBgColor: 'bg-purple-600', planKey: 'hasHRPerformance' },
+      { id: 'hr_attendance', t_key: 'الحضور والانصراف', href: '/hr/attendance', icon: Fingerprint, permission: 'manage_hr_personnel', color: 'text-amber-600', iconBgColor: 'bg-amber-600', planKey: 'hasHRAttendance' },
     ]
   },
 

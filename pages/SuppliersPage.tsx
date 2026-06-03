@@ -7,13 +7,45 @@ import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import SupplierForm from '../components/suppliers/SupplierForm';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
-import { PlusCircle, Edit, Trash2, Download, FileText, ClipboardList, Wallet, ShoppingCart, Scale } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Download, FileText, ClipboardList, Wallet, ShoppingCart, Scale, Users, TrendingUp, TrendingDown, Landmark, DollarSign } from 'lucide-react';
 import { exportToCsv } from '../utils/export';
 import { usePlan } from '../hooks/usePlan';
 import { useSettings } from '../hooks/useSettings';
 import { formatCurrency, toArabicIndic } from '../utils/localization';
 import TableSkeleton from '../components/ui/TableSkeleton';
 import { useToasts } from '../hooks/useToasts';
+
+const StatCard: React.FC<{ 
+    title: string; 
+    value: string; 
+    icon: React.ReactNode, 
+    color: 'indigo' | 'emerald' | 'amber' | 'rose' | 'slate' | 'blue',
+    delay: number 
+  }> = ({ title, value, icon, color, delay }) => {
+    const colorClasses = {
+        indigo: 'from-indigo-500/20 to-indigo-600/5 text-indigo-600 bg-indigo-500 dark:bg-indigo-600',
+        emerald: 'from-emerald-500/20 to-emerald-600/5 text-emerald-600 bg-emerald-500 dark:bg-emerald-600',
+        amber: 'from-amber-500/20 to-amber-600/5 text-amber-600 bg-amber-500 dark:bg-amber-600',
+        rose: 'from-rose-500/20 to-rose-600/5 text-rose-600 bg-rose-500 dark:bg-rose-600',
+        slate: 'from-slate-500/20 to-slate-600/5 text-slate-600 bg-slate-500 dark:bg-slate-600',
+        blue: 'from-blue-500/20 to-blue-600/5 text-blue-600 bg-blue-500 dark:bg-blue-600'
+    };
+
+    return (
+        <Card className={`group relative p-0 overflow-hidden animate-slide-up border-none shadow-xl hover:shadow-2xl hover:-translate-y-1.5 transition-all duration-500 rounded-[2rem] bg-white dark:bg-slate-900`} style={{ animationDelay: `${delay}ms`}}>
+            <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${colorClasses[color].split(' ')[0]} rounded-full blur-3xl opacity-40 -translate-y-1/2 translate-x-1/2 transition-all duration-700 group-hover:scale-150`}></div>
+            <div className="p-6 flex flex-col h-full relative z-10">
+                <div className="flex items-center justify-between mb-4">
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center bg-white dark:bg-slate-800 shadow-lg border border-slate-100 dark:border-slate-700/50 ${colorClasses[color].split(' ')[1]} transition-transform duration-500 group-hover:rotate-6 group-hover:scale-110`}>
+                        {icon}
+                    </div>
+                </div>
+                <p className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">{title}</p>
+                <h3 className="text-3xl font-black text-slate-800 dark:text-white tracking-tight">{value}</h3>
+            </div>
+        </Card>
+    );
+};
 
 const SuppliersPage: React.FC = () => {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -35,6 +67,33 @@ const SuppliersPage: React.FC = () => {
 
   const { settings } = useSettings();
   const { addToast } = useToasts();
+
+  const stats = useMemo(() => {
+     let totalCount = suppliers.length;
+     let creditorsCount = 0; // we owe them (s.debt > 0)
+     let debtorsCount = 0;   // they owe us (s.debt < 0)
+     let totalDues = 0;      // sum of positive debt
+     let totalDebts = 0;     // sum of negative debt (absolute)
+
+     suppliers.forEach(s => {
+         const d = Number(s.debt || 0);
+         if (d > 0) {
+             creditorsCount++;
+             totalDues += d;
+         } else if (d < 0) {
+             debtorsCount++;
+             totalDebts += Math.abs(d);
+         }
+     });
+
+     return {
+         totalCount,
+         creditorsCount,
+         debtorsCount,
+         totalDues,
+         totalDebts
+     };
+  }, [suppliers]);
 
   const fetchSuppliers = useCallback(async () => {
     setLoading(true);
@@ -206,8 +265,48 @@ const SuppliersPage: React.FC = () => {
             <Button onClick={handleOpenAddModal} className="rounded-xl"><PlusCircle size={20} /> إضافة مورد</Button>
         </div>
       </div>
+
+      {/* KPI Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-10">
+          <StatCard 
+              title="إجمالي الموردين"
+              value={toArabicIndic(stats.totalCount)}
+              icon={<Users size={24} />}
+              color="indigo"
+              delay={100}
+          />
+          <StatCard 
+              title="دائنون (لنا مبالغ)"
+              value={toArabicIndic(stats.creditorsCount)}
+              icon={<TrendingUp size={24} />}
+              color="amber"
+              delay={200}
+          />
+          <StatCard 
+              title="مدينون (عليها)"
+              value={toArabicIndic(stats.debtorsCount)}
+              icon={<TrendingDown size={24} />}
+              color="rose"
+              delay={300}
+          />
+          <StatCard 
+              title="إجمالي المستحقات"
+              value={formatCurrency(stats.totalDues, settings?.currency || 'SAR')}
+              icon={<Landmark size={24} />}
+              color="emerald"
+              delay={400}
+          />
+          <StatCard 
+              title="إجمالي المديونيات"
+              value={formatCurrency(stats.totalDebts, settings?.currency || 'SAR')}
+              icon={<DollarSign size={24} />}
+              color="blue"
+              delay={500}
+          />
+      </div>
+
       <Card className="p-0 shadow-premium border-none">
-        {loading ? <TableSkeleton cols={4} hasActions /> : (
+        {loading ? <TableSkeleton cols={5} hasActions /> : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-start">
               <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-400 text-[10px] font-black uppercase">
@@ -220,7 +319,11 @@ const SuppliersPage: React.FC = () => {
                             className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
                         />
                     </th>
-                    <th className="px-6 py-4">المورد</th><th className="px-6 py-4">الهاتف</th><th className="px-6 py-4">مسؤول التواصل</th><th className="px-6 py-4 text-center">إجراءات</th>
+                    <th className="px-6 py-4">المورد / الشركة</th>
+                    <th className="px-6 py-4">الهاتف</th>
+                    <th className="px-6 py-4">مسؤول التواصل</th>
+                    <th className="px-6 py-4 text-center">الرصيد المالي</th>
+                    <th className="px-6 py-4 text-center">إجراءات</th>
                 </tr>
               </thead>
               <tbody className="divide-y dark:divide-slate-800">
@@ -236,9 +339,31 @@ const SuppliersPage: React.FC = () => {
                              className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
                          />
                      </td>
-                     <td className="px-6 py-4 font-bold">{s.name}</td>
+                     <td className="px-6 py-4">
+                        <div className="font-bold text-slate-800 dark:text-white">{s.name}</div>
+                        {s.companyName && (
+                            <span className="inline-block mt-1 px-2 py-0.5 text-[10px] font-black bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400 rounded-md">
+                                {s.companyName}
+                            </span>
+                        )}
+                     </td>
                     <td className="px-6 py-4 font-mono">{s.phone}</td>
                     <td className="px-6 py-4 font-medium">{s.contactPerson}</td>
+                    <td className="px-6 py-4 text-center">
+                        {s.debt > 0 ? (
+                            <span className="inline-block px-3 py-1 bg-amber-50 text-amber-700 dark:bg-amber-950/20 dark:text-amber-400 rounded-lg text-xs font-black">
+                                + {formatCurrency(s.debt, settings?.currency)} (دائن/لها)
+                            </span>
+                        ) : s.debt < 0 ? (
+                            <span className="inline-block px-3 py-1 bg-rose-50 text-rose-700 dark:bg-rose-950/20 dark:text-rose-400 rounded-lg text-xs font-black">
+                                - {formatCurrency(Math.abs(s.debt), settings?.currency)} (مدين/عليها)
+                            </span>
+                        ) : (
+                            <span className="inline-block px-3 py-1 bg-slate-50 text-slate-500 dark:bg-slate-800/40 dark:text-slate-400 rounded-lg text-xs font-black">
+                                {formatCurrency(0, settings?.currency)}
+                            </span>
+                        )}
+                    </td>
                     <td className="px-6 py-4 text-center">
                         <div className="flex justify-center gap-2">
                         <button onClick={() => setStatementSupplier(s)} className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg" title="كشف حساب"><ClipboardList size={18}/></button>

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Product, Warehouse } from '../types';
 import { api } from '../services/mockApi';
 import Card from '../components/ui/Card';
-import { ClipboardList, Warehouse as WhIcon, Search, Printer, Download, DollarSign, Edit3, Save, X } from 'lucide-react';
+import { ClipboardList, Warehouse as WhIcon, Search, Printer, Download, DollarSign, Edit3, Save, X, Barcode } from 'lucide-react';
 import { useSettings } from '../hooks/useSettings';
 import { formatCurrency, toArabicIndic } from '../utils/localization';
 import { exportToCsv } from '../utils/export';
@@ -17,6 +17,7 @@ const InventoryAuditPage: React.FC = () => {
     const [selectedWhId, setSelectedWhId] = useState<string>('');
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [barcodeInput, setBarcodeInput] = useState('');
     
     // Adjustment Modal State
     const [adjustModal, setAdjustModal] = useState<{ open: boolean, product: Product | null }>({ open: false, product: null });
@@ -26,6 +27,25 @@ const InventoryAuditPage: React.FC = () => {
     
     const { settings } = useSettings();
     const { addToast } = useToasts();
+
+    const handleBarcodeScanSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!barcodeInput.trim()) return;
+
+        // find product matching SKU (exact first, then case-insensitive)
+        const matched = products.find(p => p.sku.trim() === barcodeInput.trim()) || 
+                        products.find(p => p.sku.toLowerCase().trim() === barcodeInput.trim().toLowerCase());
+
+        if (matched) {
+            const qty = matched.warehouseStocks?.[selectedWhId] || 0;
+            setAdjustModal({ open: true, product: matched });
+            setPhysicalQty(qty);
+            addToast(`تم العثور على المنتج: ${matched.name}`, "success");
+            setBarcodeInput('');
+        } else {
+            addToast("لم يتم العثور على أي منتج بهذا الباركود", "error");
+        }
+    };
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -110,17 +130,39 @@ const InventoryAuditPage: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-8">
-                <Card className="lg:col-span-1 p-6">
-                    <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">المستودع المستهدف</label>
-                    <select 
-                        value={selectedWhId} 
-                        onChange={e => setSelectedWhId(e.target.value)}
-                        className="w-full p-3 bg-white dark:bg-slate-800 border rounded-2xl font-black outline-none focus:ring-2 focus:ring-indigo-500"
-                    >
-                        {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
-                    </select>
+                <Card className="lg:col-span-1 p-6 flex flex-col gap-6">
+                    <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase mb-2 block">المستودع المستهدف</label>
+                        <select 
+                            value={selectedWhId} 
+                            onChange={e => setSelectedWhId(e.target.value)}
+                            className="w-full p-3 bg-white dark:bg-slate-800 border rounded-2xl font-black outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
+                            {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                        </select>
+                    </div>
                     
-                    <div className="mt-8 pt-6 border-t dark:border-slate-800">
+                    <div className="p-4 bg-indigo-50/50 dark:bg-indigo-950/20 border-2 border-indigo-100 dark:border-indigo-900/40 rounded-3xl">
+                        <label className="text-xs font-black text-indigo-700 dark:text-indigo-400 mb-2 flex items-center gap-1.5">
+                            <Barcode size={16} /> جرد سريع بالباركود
+                        </label>
+                        <form onSubmit={handleBarcodeScanSubmit} className="relative">
+                            <input 
+                                type="text" 
+                                placeholder="امسح الباركود واضغط Enter..." 
+                                value={barcodeInput}
+                                onChange={e => setBarcodeInput(e.target.value)}
+                                className="w-full h-11 ps-3 pe-8 rounded-xl bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 font-bold text-xs focus:ring-2 focus:ring-indigo-500 outline-none text-center"
+                                autoFocus
+                            />
+                            <div className="absolute top-1/2 -translate-y-1/2 end-3 text-indigo-500">
+                                <Barcode size={16} />
+                            </div>
+                        </form>
+                        <p className="text-[9px] font-bold text-slate-400 mt-2 text-center leading-normal">امسح باركود السلعة ليفتح نافذة الجرد والتعديل فوراً.</p>
+                    </div>
+                    
+                    <div className="pt-6 border-t dark:border-slate-800 mt-auto">
                         <p className="text-[10px] font-black text-slate-400 uppercase mb-1">إجمالي قيمة المخزون الحالي</p>
                         <p className="text-3xl font-black text-emerald-600">{formatCurrency(totalValue, settings?.currency || 'SAR')}</p>
                         <p className="text-[10px] text-slate-400 mt-1 font-bold">بناءً على سعر التكلفة لـ {toArabicIndic(auditData.length)} منتج</p>

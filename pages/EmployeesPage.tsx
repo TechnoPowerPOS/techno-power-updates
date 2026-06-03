@@ -8,6 +8,7 @@ import ConfirmDialog from '../components/ui/ConfirmDialog';
 import { PlusCircle, Edit3, Trash2, Users, Percent, ShieldBan, FileText, User, DollarSign } from 'lucide-react';
 import { useToasts } from '../hooks/useToasts';
 import { useSettings } from '../hooks/useSettings';
+import { usePlan } from '../hooks/usePlan';
 import { toArabicIndic, formatCurrency, formatAmount } from '../utils/localization';
 
 const EmployeesPage: React.FC = () => {
@@ -20,6 +21,7 @@ const EmployeesPage: React.FC = () => {
     const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
     const { addToast } = useToasts();
     const { settings } = useSettings();
+    const { limits } = usePlan();
 
     // Report states
     const [startDate, setStartDate] = useState(() => {
@@ -57,6 +59,7 @@ const EmployeesPage: React.FC = () => {
 
     const handleDelete = async () => {
         if (!confirmDeleteId) return;
+        setIsLoading(true);
         try {
             await api.deleteEmployee(confirmDeleteId);
             addToast('تم حذف الموظف بنجاح', 'success');
@@ -65,12 +68,17 @@ const EmployeesPage: React.FC = () => {
             addToast('فشل في عملية الحذف', 'error');
         } finally {
             setConfirmDeleteId(null);
+            setIsLoading(false);
         }
     };
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
+            if (!editingEmployee && employees.length >= limits.maxEmployees) {
+                addToast(`لقد وصلت للحد الأقصى لعدد الموظفين في باقتك (${toArabicIndic(limits.maxEmployees.toString())})`, 'error');
+                return;
+            }
             await api.saveEmployee({ ...formData, id: editingEmployee?.id });
             addToast('تم حفظ الموظف بنجاح', 'success');
             setIsModalOpen(false);
@@ -139,7 +147,13 @@ const EmployeesPage: React.FC = () => {
             {activeTab === 'management' && (
                 <div className="space-y-6 animate-fadeIn">
                     <div className="flex justify-end">
-                        <Button onClick={() => { setEditingEmployee(null); setFormData({name: '', phone: '', commissionPercentage: 0, maxDiscountLimit: 0, status: 'Active'}); setIsModalOpen(true); }} className="rounded-2xl font-black h-12 px-6">
+                        <Button onClick={() => { 
+                            if (employees.length >= limits.maxEmployees) {
+                                addToast(`لقد وصلت للحد الأقصى لعدد الموظفين في باقتك (${toArabicIndic(limits.maxEmployees.toString())})`, 'error');
+                                return;
+                            }
+                            setEditingEmployee(null); setFormData({name: '', phone: '', commissionPercentage: 0, maxDiscountLimit: 0, status: 'Active'}); setIsModalOpen(true); 
+                        }} className="rounded-2xl font-black h-12 px-6">
                             <PlusCircle size={18} className="me-2"/> إضافة موظف
                         </Button>
                     </div>
@@ -213,6 +227,9 @@ const EmployeesPage: React.FC = () => {
                         onConfirm={handleDelete}
                         title="تأكيد الحذف"
                         message="هل أنت متأكد من حذف هذا الموظف؟ لا يمكن التراجع عن هذا الإجراء."
+                        isLoading={isLoading}
+                        confirmText="حذف الموظف"
+                        confirmVariant="danger"
                     />
                 </div>
             )}

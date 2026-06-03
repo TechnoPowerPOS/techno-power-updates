@@ -46,7 +46,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ permission, children })
 
   // Use getPlanLimits for more granular control
   const limits = getPlanLimits(licenseInfo.type);
-  const isAdmin = user.email === 'm7mdshipl@gmail.com' || user.email === 'admin@techno.com';
+  const isAdmin = user.roleId === 'r-1';
 
   if (!isAdmin) {
     const isRestrictedTarget = Array.isArray(permission) ? permission : [permission];
@@ -64,6 +64,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ permission, children })
     const needsSatisfaction = isRestrictedTarget.some(p => ['view_satisfaction_reports'].includes(p as string)) || location.pathname.includes('customer-satisfaction');
     const needsActivityLogs = isRestrictedTarget.some(p => ['view_activity_logs'].includes(p as string)) || location.pathname.includes('activity-logs');
     const needsWhatsApp = isRestrictedTarget.some(p => ['manage_whatsapp'].includes(p as string)) || location.pathname.includes('whatsapp');
+    const needsStagnantProducts = isRestrictedTarget.some(p => ['view_stagnant_products_report'].includes(p as string)) || location.pathname.includes('stagnant-products');
     
     // HR & Manufacturing specific checks
     const needsHR = isRestrictedTarget.some(p => String(p).includes('manage_hr')) || location.pathname.includes('employee-management');
@@ -88,6 +89,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ permission, children })
     if (needsSatisfaction && !limits.hasCustomerSatisfaction) return <LockedFeature />;
     if (needsActivityLogs && !limits.hasActivityLogs) return <LockedFeature />;
     if (needsWhatsApp && !limits.hasWhatsApp) return <LockedFeature />;
+    if (needsStagnantProducts && !limits.hasStagnantProducts) return <LockedFeature />;
     
     if (needsCRM && limits.maxCustomers <= 50) return <LockedFeature />;
     if (needsNotes && !limits.hasNotes) return <LockedFeature />;

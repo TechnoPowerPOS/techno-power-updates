@@ -39,8 +39,8 @@ const WhatsNewModal: React.FC<WhatsNewModalProps> = ({ isOpen, onClose }) => {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={modalTitle}>
       <div className="space-y-6">
-        {CHANGELOG_DATA.map((entry) => (
-          <div key={entry.version}>
+        {CHANGELOG_DATA.map((entry, idx) => (
+          <div key={`${entry.version}-${idx}`}>
             <div className="flex items-baseline gap-3 mb-2">
                 <h3 className="text-lg font-bold text-gray-800 dark:text-white">الإصدار {entry.version}</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">{new Date(entry.date).toLocaleDateString('en-GB', { year: 'numeric', month: 'long', day: 'numeric' })}</p>

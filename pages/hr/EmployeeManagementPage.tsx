@@ -8,8 +8,8 @@ import EmployeePerformancePage from '../EmployeePerformancePage';
 import PageHeader from '../../components/layout/PageHeader';
 import { Users, FileText, DollarSign, Calendar, TrendingUp, Percent, Search, Briefcase, ChevronRight } from 'lucide-react';
 import { usePlan } from '../../hooks/usePlan';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { collection, getDocs, query, orderBy } from '../../services/localFirestore';
+import { db  } from '../../services/localFirestore';
 import Card from '../../components/ui/Card';
 
 const CommissionsSummary: React.FC = () => {

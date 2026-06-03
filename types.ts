@@ -18,6 +18,17 @@ export interface GlobalSettings {
         buttonText?: string;
         linkUrl?: string;
     };
+    socialLinks?: {
+        twitter?: string;
+        facebook?: string;
+        instagram?: string;
+        youtube?: string;
+        website?: string;
+    };
+    supportContact?: {
+        phone?: string;
+        email?: string;
+    };
 }
 
 export type CustomerTier = 'Regular' | 'Wholesale' | 'Retail' | 'VIP';
@@ -105,6 +116,22 @@ export interface ProductVariant {
 
 export type ProductUnit = 'Piece' | 'Box' | 'KG' | 'Meter' | 'Litre' | 'Set';
 
+export interface Category {
+  id: string;
+  name: string;
+  description?: string;
+  imageUrl?: string;
+}
+
+export interface ProductVariant {
+  id: string; // unique id for the variant
+  size?: string;
+  color?: string;
+  barcode: string; // barcode specific to this variant
+  sku?: string;
+  stock?: number;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -119,9 +146,15 @@ export interface Product {
   description?: string;
   imageUrl?: string;
   isFeatured?: boolean;
+  productionDate?: string;
   expiryDate?: string;
   hasVariants?: boolean;
+  variants?: ProductVariant[];
   isSerialized?: boolean;
+  offerType?: 'bundle' | 'seasonal' | 'none';
+  offerThreshold?: number;
+  offerDiscountType?: 'percent' | 'amount';
+  offerDiscountValue?: number;
 }
 
 export interface CustomerDebtTransaction {
@@ -175,7 +208,7 @@ export interface Sale {
   discountType: 'amount' | 'percent';
   shipping: number;
   vatAmount?: number;
-  status: 'Completed' | 'Refunded' | 'Draft';
+  status: 'Completed' | 'Refunded' | 'Draft' | 'Confirmed' | 'PendingReview' | 'Reservation';
   warehouseId: string;
   treasuryId: string;
   pointsRedeemed?: number;
@@ -231,6 +264,7 @@ export interface Supplier {
   debt: number; // For keeping track of supplier balance
   creditLimit?: number;
   userId?: string; // Linked Employee/User
+  companyName?: string; // Company they belong to
 }
 
 export interface Warehouse {
@@ -246,9 +280,21 @@ export interface StoreSettings {
   taxRegisterNumber: string;
   invoiceFooter: string;
   logoUrl: string;
+  invoiceQrUrl?: string;
   currency: CurrencyCode;
+  decimalPlaces?: number;
+  socialLinks?: {
+    twitter?: string;
+    facebook?: string;
+    instagram?: string;
+    youtube?: string;
+    website?: string;
+  };
   nextInvoiceNumber: number;
   invoiceNumberPrefix: string;
+  enableOffers?: boolean;
+  enableExchange?: boolean;
+  enableReservations?: boolean;
   posLayout?: 'classic' | 'horizontal' | 'streamlined' | 'grid' | 'invoice';
   appLayout?: 'classic' | 'modern' | 'ultra';
   visiblePages: string[];
@@ -258,9 +304,14 @@ export interface StoreSettings {
   storeEmail?: string;
   storeAddress?: string;
   monthlySalesGoal?: number;
+  sidebarItemsOrder?: string[];
+  hiddenSidebarGroups?: string[];
   inventorySettings?: {
     minAlertQty: number;
     allowSaleWithoutStock: boolean;
+    enableExpiryDates?: boolean;
+    enableProductVariants?: boolean;
+    staleDays?: number;
   };
   whatsappMode?: 'wa.me' | 'api';
   whatsappApiUrl?: string;
@@ -291,18 +342,22 @@ export interface StoreSettings {
     debtAlert: boolean;
     stockAlert: boolean;
     enabled: boolean;
+    expiryAlertDays?: number;
   };
   autoBackup?: {
     enabled: boolean;
     lastBackupAt: number;
     intervalMinutes: number;
+    localPath?: string;
   };
   invoiceDesign: {
     template: 'modern' | 'classic' | 'minimal' | 'thermal' | 'free' | 'professional';
     showLogo: boolean;
     showQrCode: boolean;
+    showBarcode?: boolean;
     accentColor: string;
     customCss?: string;
+    customHtml?: string;
     vatNumber?: string;
   };
   loyaltySettings: {
@@ -513,12 +568,37 @@ export interface DashboardAnalytics {
   totalSalesToday: number;
   totalSalesThisMonth: number;
   todaysTransactions: number;
+  totalInvoices: number;
+  totalConfirmedOrders: number;
+  totalPendingOrders: number;
+  totalReturns: number;
   totalReceivables: number;
   totalStockValue: number;
+  totalStockAlerts: number;
+  totalStockStockAlerts?: number; // legacy typo
   monthlySales: { name: string; sales: number }[];
   salesByCategory: { name: string; value: number }[];
   topProducts: { id: string; name: string; totalRevenue: number }[];
   stockAlerts: { id: string; name: string; stock: number; reorderLevel: number }[];
+  dailyKPI?: {
+    todaySales: number;
+    lastWeekAverage: number;
+    percentageChange: number;
+    isUp: boolean;
+  };
+  trends?: {
+    revenuePercentage: number;
+    revenueIsUp: boolean;
+    transactionsPercentage: number;
+    transactionsIsUp: boolean;
+    monthlyRevenuePercentage: number;
+    monthlyRevenueIsUp: boolean;
+    profitPercentage: number;
+    profitIsUp: boolean;
+    receivablesPercentage: number;
+    receivablesIsUp: boolean;
+  };
+  totalProfits?: number;
 }
 
 export interface EmployeePerformanceData {
@@ -561,7 +641,12 @@ export interface UserIdentity {
     phone: string;
     country: string;
     registeredAt: string;
+    updatedAt?: string;
     ipAddress?: string;
+    requestedPlan?: string;
+    businessType?: string;
+    confirmed?: boolean;
+    needsAdminDataCompletion?: boolean;
 }
 
 export interface SyncLog {

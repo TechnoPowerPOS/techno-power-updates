@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
-import { collection, query, getDocs, orderBy, limit, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { collection, query, getDocs, orderBy, limit, addDoc, serverTimestamp, writeBatch, increment } from '../../services/localFirestore';
+import { db  } from '../../services/localFirestore';
 import { handleFirestoreError, OperationType } from '../../services/firestoreErrorHandler';
 import { useToasts } from '../../hooks/useToasts';
-import { CreditCard, Plus, Search, Filter, Database, Calendar, User, DollarSign, ShieldAlert, Trash2, Edit3 } from 'lucide-react';
-import { doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { CreditCard, Plus, Search, Filter, Database, Calendar, User, DollarSign, ShieldAlert, Trash2, Edit3, Check as CheckIcon } from 'lucide-react';
+import { doc, deleteDoc, updateDoc } from '../../services/localFirestore';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import PageHeader from '../../components/layout/PageHeader';
@@ -35,8 +35,16 @@ const ChecksPage: React.FC<ChecksPageProps> = ({ hideHeader = false }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [filterStatus, setFilterStatus] = useState('all');
     const [editingCheck, setEditingCheck] = useState<CommercialCheck | null>(null);
     
+    // Cashing logic states
+    const [cashingCheck, setCashingCheck] = useState<CommercialCheck | null>(null);
+    const [isCashingModalOpen, setIsCashingModalOpen] = useState(false);
+    const [treasuries, setTreasuries] = useState<any[]>([]);
+    const [selectedTreasury, setSelectedTreasury] = useState('');
+    const [addToTreasury, setAddToTreasury] = useState(false);
+
     const [formData, setFormData] = useState({
         checkNumber: '',
         beneficiary: '',
@@ -48,7 +56,22 @@ const ChecksPage: React.FC<ChecksPageProps> = ({ hideHeader = false }) => {
 
     useEffect(() => {
         fetchChecks();
+        fetchTreasuries();
     }, []);
+
+    const fetchTreasuries = async () => {
+        try {
+            const snap = await getDocs(query(collection(db, 'treasuries')));
+            const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setTreasuries(data);
+            if (data.length > 0) {
+                const defaultTr = data.find(t => t.isDefault);
+                setSelectedTreasury(defaultTr ? defaultTr.id : data[0].id);
+            }
+        } catch (e) {
+            console.error('Failed to fetch treasuries', e);
+        }
+    };
 
     const fetchChecks = async () => {
         setLoading(true);
@@ -72,6 +95,16 @@ const ChecksPage: React.FC<ChecksPageProps> = ({ hideHeader = false }) => {
                 ...formData,
                 dueDate: new Date(formData.dueDate)
             });
+
+            if (formData.dueDate) {
+               await addDoc(collection(db, 'global_notifications'), {
+                   title: 'تذكير: استحقاق شيك',
+                   body: `تم إصدار شيك رقم ${formData.checkNumber} بقيمة ${formData.amount} وموعد استحقاقه في ${formData.dueDate}.`,
+                   type: 'info',
+                   sentAt: new Date().toISOString()
+               });
+            }
+
             addToast('تم إصدار الشيك بنجاح', 'success');
             setIsModalOpen(false);
             setFormData({ checkNumber: '', beneficiary: '', amount: 0, dueDate: '', bank: '', status: 'Issued' });
@@ -83,7 +116,53 @@ const ChecksPage: React.FC<ChecksPageProps> = ({ hideHeader = false }) => {
         }
     };
 
+    const handleConfirmCash = async () => {
+        if (!cashingCheck) return;
+        setSubmitting(true);
+        try {
+            const batch = writeBatch();
+            
+            batch.update(doc(db, 'acc_checks', cashingCheck.id), { status: 'Cashed' });
+
+            if (addToTreasury && selectedTreasury) {
+                batch.update(doc(db, 'treasuries', selectedTreasury), {
+                    balance: increment(Number(cashingCheck.amount))
+                });
+                
+                const trRef = doc(collection(db, 'transactions'));
+                batch.set(trRef, {
+                    treasuryId: selectedTreasury,
+                    type: 'income',
+                    amount: Number(cashingCheck.amount),
+                    category: 'تحصيل شيكات',
+                    description: `تحصيل شيك رقم ${cashingCheck.checkNumber} من ${cashingCheck.beneficiary}`,
+                    date: new Date().toISOString()
+                });
+            }
+
+            await batch.commit();
+            addToast('تم تحصيل الشيك بنجاح', 'success');
+            fetchChecks();
+            setIsCashingModalOpen(false);
+            setCashingCheck(null);
+            setAddToTreasury(false);
+        } catch (error) {
+            handleFirestoreError(error, OperationType.UPDATE, 'acc_checks_cashing');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     const handleStatusChange = async (checkId: string, newStatus: 'Issued' | 'Cashed' | 'Bounced' | 'Canceled') => {
+        if (newStatus === 'Cashed') {
+            const chk = checks.find(c => c.id === checkId);
+            if (chk) {
+                setCashingCheck(chk);
+                setIsCashingModalOpen(true);
+                return;
+            }
+        }
+        
         try {
             await updateDoc(doc(db, 'acc_checks', checkId), { status: newStatus });
             addToast('تم تحديث حالة الشيك بنجاح', 'success');
@@ -104,11 +183,16 @@ const ChecksPage: React.FC<ChecksPageProps> = ({ hideHeader = false }) => {
         }
     };
 
-    const filteredChecks = checks.filter(c => 
-        c.checkNumber.includes(searchQuery) || 
-        c.beneficiary.includes(searchQuery) ||
-        c.bank.includes(searchQuery)
-    );
+    const filteredChecks = checks.filter(c => {
+        const matchesSearch = 
+            (c.checkNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+            (c.beneficiary || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (c.bank || '').toLowerCase().includes(searchQuery.toLowerCase());
+            
+        const matchesStatus = filterStatus === 'all' || c.status === filterStatus;
+        
+        return matchesSearch && matchesStatus;
+    });
 
     const underCollectionCount = checks.filter(c => c.status === 'Issued').length;
     const delayedCount = checks.filter(c => {
@@ -168,7 +252,17 @@ const ChecksPage: React.FC<ChecksPageProps> = ({ hideHeader = false }) => {
                 <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-900 font-black">
                     <h3>جدول الشيكات المستحقة</h3>
                     <div className="flex gap-2">
-                        <Button variant="outline" className="h-10 px-4 rounded-xl text-xs"><Filter size={14} className="me-2" /> فلترة</Button>
+                        <select 
+                            value={filterStatus}
+                            onChange={(e) => setFilterStatus(e.target.value)}
+                            className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 h-10 px-4 rounded-xl text-xs font-bold outline-none"
+                        >
+                            <option value="all">كل الحالات</option>
+                            <option value="Issued">تحت التحصيل</option>
+                            <option value="Cashed">تم الصرف</option>
+                            <option value="Bounced">مرتجع</option>
+                            <option value="Canceled">ملغى</option>
+                        </select>
                     </div>
                 </div>
                 <div className="overflow-x-auto">
@@ -307,6 +401,58 @@ const ChecksPage: React.FC<ChecksPageProps> = ({ hideHeader = false }) => {
                         </Button>
                     </div>
                 </form>
+            </Modal>
+
+            {/* Cashing Modal */}
+            <Modal isOpen={isCashingModalOpen} onClose={() => setIsCashingModalOpen(false)} title="تحصيل شيك">
+                <div className="space-y-6">
+                    <p className="text-sm font-bold text-slate-600 dark:text-slate-300">
+                        جاري تحصيل شيك رقم <span className="text-indigo-600 dark:text-indigo-400 select-all font-black">{cashingCheck?.checkNumber}</span> بقيمة <span className="font-black text-rose-500">{formatCurrency(cashingCheck?.amount || 0)}</span>.
+                    </p>
+                    
+                    <label className="flex items-center gap-3 p-4 rounded-xl border border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-all">
+                        <input 
+                            type="checkbox" 
+                            checked={addToTreasury}
+                            onChange={(e) => setAddToTreasury(e.target.checked)}
+                            className="w-5 h-5 rounded text-indigo-600"
+                        />
+                        <span className="font-bold text-slate-700 dark:text-slate-200">إضافة القيمة مباشرة إلى الخزينة</span>
+                    </label>
+
+                    {addToTreasury && (
+                        <div className="space-y-2 animate-fadeIn">
+                            <label className="block text-xs font-black text-slate-500">اختر الخزينة</label>
+                            <select 
+                                value={selectedTreasury}
+                                onChange={e => setSelectedTreasury(e.target.value)}
+                                className="w-full h-12 bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 text-sm font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+                            >
+                                {treasuries.map(t => (
+                                    <option key={t.id} value={t.id}>{t.name} ({formatCurrency(t.balance)})</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+
+                    <div className="pt-4 flex gap-3">
+                        <Button 
+                            onClick={handleConfirmCash} 
+                            className="flex-1 bg-green-600 hover:bg-green-700 h-12 rounded-xl font-black shadow-lg shadow-green-500/20"
+                            disabled={submitting}
+                        >
+                            {submitting ? 'جاري التحصيل...' : 'تأكيد التحصيل'}
+                        </Button>
+                        <Button 
+                            type="button"
+                            variant="outline" 
+                            className="h-12 px-6 rounded-xl font-black"
+                            onClick={() => setIsCashingModalOpen(false)}
+                        >
+                            إلغاء
+                        </Button>
+                    </div>
+                </div>
             </Modal>
         </div>
     );

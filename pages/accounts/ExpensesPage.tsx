@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { collection, query, getDocs, addDoc, serverTimestamp, orderBy, limit, doc, writeBatch, increment, where } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { collection, query, getDocs, addDoc, serverTimestamp, orderBy, limit, doc, writeBatch, increment, where } from '../../services/localFirestore';
+import { db  } from '../../services/localFirestore';
 import { handleFirestoreError, OperationType } from '../../services/firestoreErrorHandler';
 import { useToasts } from '../../hooks/useToasts';
 import { Wallet, Plus, Search, Filter, DollarSign, Tag, Calendar, User, FileText, ChevronDown, Building, Edit2, Trash2 } from 'lucide-react';
@@ -17,6 +17,7 @@ import { Printer } from 'lucide-react';
 
 import { useNavigate } from 'react-router-dom';
 import { formatCurrency } from '../../utils/localization';
+import { useSettings } from '../../hooks/useSettings';
 
 interface Expense {
     id: string;
@@ -36,6 +37,7 @@ interface ExpensesPageProps {
 const ExpensesPage: React.FC<ExpensesPageProps> = ({ hideHeader = false }) => {
     const navigate = useNavigate();
     const { addToast } = useToasts();
+    const { settings } = useSettings();
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -205,14 +207,15 @@ const ExpensesPage: React.FC<ExpensesPageProps> = ({ hideHeader = false }) => {
             // 2. Refund treasury
             if (expenseToDelete.treasuryId) {
                 const tRef = doc(db, 'treasuries', expenseToDelete.treasuryId);
-                batch.update(tRef, { balance: increment(expenseToDelete.amount) });
+                const refundAmount = Number(expenseToDelete.amount) || 0;
+                batch.update(tRef, { balance: increment(refundAmount) });
             
                 // 3. Log refund transaction
-                const transRef = doc(collection(db, 'treasury_transactions'));
+                const transRef = doc(collection(db, 'transactions'));
                 batch.set(transRef, {
                     treasuryId: expenseToDelete.treasuryId,
                     type: 'income',
-                    amount: expenseToDelete.amount,
+                    amount: refundAmount,
                     description: `استرجاع مبلغ مصروف محذوف: ${expenseToDelete.description || expenseToDelete.category}`,
                     category: 'استرجاع مصروفات',
                     date: new Date().toISOString()
@@ -273,7 +276,7 @@ const ExpensesPage: React.FC<ExpensesPageProps> = ({ hideHeader = false }) => {
                         }
                     } else {
                         // Different treasury: Refund old, subtract from new
-                        batch.update(oldTRef, { balance: increment(editingExpense.amount) });
+                        batch.update(oldTRef, { balance: increment(Number(editingExpense.amount) || 0) });
                         const newTRef = doc(db, 'treasuries', formData.treasuryId);
                         batch.update(newTRef, { balance: increment(-amountNum) });
                     }
@@ -290,7 +293,7 @@ const ExpensesPage: React.FC<ExpensesPageProps> = ({ hideHeader = false }) => {
                 const treasuryRef = doc(db, 'treasuries', formData.treasuryId);
                 batch.update(treasuryRef, { balance: increment(-amountNum) });
 
-                const transRef = doc(collection(db, 'treasury_transactions'));
+                const transRef = doc(collection(db, 'transactions'));
                 batch.set(transRef, {
                     treasuryId: formData.treasuryId,
                     type: 'withdrawal',
@@ -473,7 +476,7 @@ const ExpensesPage: React.FC<ExpensesPageProps> = ({ hideHeader = false }) => {
             {(startDate || endDate) && (
                 <div className="mb-6 p-4 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-between dark:bg-rose-900/30 dark:border-rose-800/50">
                     <span className="font-bold text-rose-800 dark:text-rose-200">إجمالي مصروفات الفترة المحددة:</span>
-                    <span className="text-xl font-black text-rose-900 dark:text-rose-100">{formatCurrency(filteredExpenses.reduce((a, b) => a + Number(b.amount || 0), 0), 'SAR')}</span>
+                    <span className="text-xl font-black text-rose-900 dark:text-rose-100">{formatCurrency(filteredExpenses.reduce((a, b) => a + Number(b.amount || 0), 0), settings?.currency)}</span>
                 </div>
             )}
 
@@ -500,10 +503,10 @@ const ExpensesPage: React.FC<ExpensesPageProps> = ({ hideHeader = false }) => {
                         </thead>
                         <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
                             {loading ? (
-                                Array(5).fill(0).map((_, i) => <tr key={i} className="h-16 animate-pulse bg-slate-50/50 dark:bg-slate-900/50"></tr>)
+                                Array(5).fill(0).map((_, i) => <tr key={`skeleton-${i}`} className="h-16 animate-pulse bg-slate-50/50 dark:bg-slate-900/50"><td colSpan={7}></td></tr>)
                             ) : filteredExpenses.length > 0 ? (
-                                filteredExpenses.map(ex => (
-                                    <tr key={ex.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
+                                filteredExpenses.map((ex, index) => (
+                                    <tr key={ex.id ? `${ex.id}-${index}` : index} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group">
                                         <td className="px-6 py-5 text-start">
                                             <div className="flex items-center gap-2 text-slate-500 font-bold text-xs">
                                                 <Calendar size={12} />

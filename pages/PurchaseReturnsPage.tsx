@@ -4,9 +4,9 @@ import type { PurchaseReturn } from '../types';
 import { api } from '../services/mockApi';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import { PlusCircle, Search } from 'lucide-react';
+import { PlusCircle, Search, RotateCcw, TrendingDown, Calendar } from 'lucide-react';
 import { useSettings } from '../hooks/useSettings';
-import { formatCurrency } from '../utils/localization';
+import { formatCurrency, toArabicIndic } from '../utils/localization';
 import PurchaseReturnModal from '../components/returns/PurchaseReturnModal';
 import { useAuth } from '../hooks/useAuth';
 import TableSkeleton from '../components/ui/TableSkeleton';
@@ -37,6 +37,27 @@ const PurchaseReturnsPage: React.FC = () => {
     useEffect(() => {
         fetchReturns();
     }, [fetchReturns]);
+
+    const stats = useMemo(() => {
+        const list = Array.isArray(returns) ? returns : [];
+        const totalCount = list.length;
+        const totalAmount = list.reduce((sum, r) => sum + (r.totalRecovered || 0), 0);
+        
+        const todayStr = new Date().toISOString().split('T')[0];
+        const todayList = list.filter(r => {
+            if (!r.date) return false;
+            return r.date.split('T')[0] === todayStr;
+        });
+        const todayCount = todayList.length;
+        const todayAmount = todayList.reduce((sum, r) => sum + (r.totalRecovered || 0), 0);
+        
+        return {
+            totalCount,
+            totalAmount,
+            todayCount,
+            todayAmount
+        };
+    }, [returns]);
 
     const filteredReturns = useMemo(() => {
         if (!searchTerm) return returns;
@@ -89,6 +110,47 @@ const PurchaseReturnsPage: React.FC = () => {
                     </Button>
                 </div>
             </div>
+
+            {/* Statistics Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <Card className="p-5 flex items-center justify-between border-none shadow-sm bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-900/50">
+                    <div className="space-y-1">
+                        <p className="text-[10px] font-black text-slate-400 uppercase">إجمالي المرتجعات</p>
+                        <p className="text-2xl font-black text-slate-800 dark:text-white">{toArabicIndic(stats.totalCount)} عملية</p>
+                    </div>
+                    <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 rounded-2xl">
+                        <RotateCcw size={22} />
+                    </div>
+                </Card>
+                <Card className="p-5 flex items-center justify-between border-none shadow-sm bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-900/50">
+                    <div className="space-y-1">
+                        <p className="text-[10px] font-black text-slate-400 uppercase">إجمالي مبلغ المرتجعات</p>
+                        <p className="text-2xl font-black text-rose-600">{formatCurrency(stats.totalAmount, settings?.currency || 'SAR')}</p>
+                    </div>
+                    <div className="p-3 bg-rose-50 dark:bg-rose-900/30 text-rose-600 rounded-2xl">
+                        <TrendingDown size={22} />
+                    </div>
+                </Card>
+                <Card className="p-5 flex items-center justify-between border-none shadow-sm bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-900/50">
+                    <div className="space-y-1">
+                        <p className="text-[10px] font-black text-slate-400 uppercase">إجمالي المرتجعات اليوم</p>
+                        <p className="text-2xl font-black text-slate-800 dark:text-white">{toArabicIndic(stats.todayCount)} عملية</p>
+                    </div>
+                    <div className="p-3 bg-amber-50 dark:bg-amber-900/30 text-amber-600 rounded-2xl">
+                        <Calendar size={22} />
+                    </div>
+                </Card>
+                <Card className="p-5 flex items-center justify-between border-none shadow-sm bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-900/50">
+                    <div className="space-y-1">
+                        <p className="text-[10px] font-black text-slate-400 uppercase">إجمالي مبلغ المرتجعات اليوم</p>
+                        <p className="text-2xl font-black text-rose-600">{formatCurrency(stats.todayAmount, settings?.currency || 'SAR')}</p>
+                    </div>
+                    <div className="p-3 bg-rose-100/50 dark:bg-rose-900/40 text-rose-600 rounded-2xl">
+                        <TrendingDown size={22} />
+                    </div>
+                </Card>
+            </div>
+
             <Card className="p-0 border-none shadow-premium overflow-hidden">
                 {loading ? <TableSkeleton cols={5} /> : !settings ? <p className="p-6">جاري تحميل...</p> : (
                     <div className="overflow-x-auto">

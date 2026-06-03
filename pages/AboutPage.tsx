@@ -1,6 +1,6 @@
 import React from 'react';
 import Card from '../components/ui/Card';
-import { Code2, Heart, Mail, Smartphone, Sparkles, Building, Rocket, Shield } from 'lucide-react';
+import { Code2, Heart, Mail, Smartphone, Sparkles, Building, Rocket, Shield, Twitter, Facebook, Instagram, Youtube, Globe } from 'lucide-react';
 import { useGlobalSettings } from '../hooks/useGlobalSettings';
 
 const AboutPage: React.FC = () => {
@@ -9,8 +9,16 @@ const AboutPage: React.FC = () => {
     const supportEmail = settings?.supportContact?.email || "technopowereg@hotmail.com";
     const waLink = `https://wa.me/${supportPhone.replace(/[^0-9]/g, '')}`;
 
+    const socialLinks = settings?.socialLinks || {
+        twitter: 'https://x.com',
+        facebook: 'https://facebook.com',
+        instagram: 'https://instagram.com',
+        youtube: 'https://youtube.com',
+        website: 'https://technopower.store/'
+    };
+
     return (
-        <div className="max-w-6xl mx-auto pb-20 animate-fadeIn space-y-12">
+        <div className="max-w-7xl mx-auto pb-20 animate-fadeIn space-y-12">
             {/* Header Section */}
             <div className="relative rounded-[3rem] overflow-hidden bg-gradient-to-br from-blue-600 to-indigo-700 p-12 md:p-20 text-center shadow-[0_8px_40px_rgba(37,99,235,0.2)] dark:shadow-[0_8px_40px_rgba(0,0,0,0.4)]">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(255,255,255,0.1),_transparent_50%)]"></div>
@@ -85,13 +93,34 @@ const AboutPage: React.FC = () => {
                             </div>
 
                             <div className="space-y-4">
-                                <a href={`mailto:${supportEmail}`} className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 hover:bg-blue-50 dark:bg-slate-800/50 dark:hover:bg-slate-800 transition-colors border border-transparent hover:border-blue-100 dark:hover:border-slate-700 group">
-                                    <div className="w-10 h-10 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 group-hover:text-blue-600 shadow-sm transition-colors">
-                                        <Mail size={18}/>
+                                <a href="mailto:info@technopower.store" className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800/50 dark:hover:bg-slate-800 transition-colors border border-transparent hover:border-slate-200 dark:hover:border-slate-700 group">
+                                    <div className="w-10 h-10 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 group-hover:text-slate-600 shadow-sm transition-colors">
+                                        <Building size={18}/>
                                     </div>
                                     <div className="flex-1">
-                                        <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400">البريد الإلكتروني</p>
-                                        <p className="text-sm font-bold text-slate-700 dark:text-slate-300">{supportEmail}</p>
+                                        <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400">المدير التنفيذي</p>
+                                        <p className="text-sm font-bold text-slate-700 dark:text-slate-300">info@technopower.store</p>
+                                    </div>
+                                </a>
+
+
+                                <a href="mailto:agents@technopower.store" className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 hover:bg-purple-50 dark:bg-slate-800/50 dark:hover:bg-slate-800 transition-colors border border-transparent hover:border-purple-100 dark:hover:border-slate-700 group">
+                                    <div className="w-10 h-10 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 group-hover:text-purple-600 shadow-sm transition-colors">
+                                        <Shield size={18}/>
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400">الوكلاء والشراكات</p>
+                                        <p className="text-sm font-bold text-slate-700 dark:text-slate-300">agents@technopower.store</p>
+                                    </div>
+                                </a>
+
+                                <a href="mailto:developer@technopower.store" className="flex items-center gap-4 p-4 rounded-2xl bg-slate-50 hover:bg-indigo-50 dark:bg-slate-800/50 dark:hover:bg-slate-800 transition-colors border border-transparent hover:border-indigo-100 dark:hover:border-slate-700 group">
+                                    <div className="w-10 h-10 rounded-full bg-white dark:bg-slate-700 flex items-center justify-center text-slate-400 group-hover:text-indigo-600 shadow-sm transition-colors">
+                                        <Code2 size={18}/>
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400">التطوير والتقنيات</p>
+                                        <p className="text-sm font-bold text-slate-700 dark:text-slate-300">developer@technopower.store</p>
                                     </div>
                                 </a>
                                 
@@ -104,6 +133,37 @@ const AboutPage: React.FC = () => {
                                         <p className="text-sm font-bold text-slate-700 dark:text-slate-300" dir="ltr">{supportPhone}</p>
                                     </div>
                                 </a>
+                            </div>
+
+                            <div className="pt-6 border-t border-slate-100 dark:border-slate-800/80">
+                                <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-4 text-center">تابعنا على شبكاتنا الاجتماعية</p>
+                                <div className="flex flex-wrap items-center justify-center gap-3">
+                                    {socialLinks.facebook && (
+                                        <a href={socialLinks.facebook} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white dark:bg-slate-800/40 dark:text-blue-400 dark:hover:bg-blue-600 dark:hover:text-white flex items-center justify-center shadow-sm hover:scale-110 active:scale-95 transition-all" title="فيسبوك">
+                                            <Facebook size={18} />
+                                        </a>
+                                    )}
+                                    {socialLinks.twitter && (
+                                        <a href={socialLinks.twitter} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-xl bg-slate-900 text-white hover:bg-black dark:bg-slate-800/40 dark:text-white dark:hover:bg-slate-700 flex items-center justify-center shadow-sm hover:scale-110 active:scale-95 transition-all" title="منصة X">
+                                            <Twitter size={18} />
+                                        </a>
+                                    )}
+                                    {socialLinks.instagram && (
+                                        <a href={socialLinks.instagram} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white dark:bg-slate-800/40 dark:text-rose-400 dark:hover:bg-rose-600 dark:hover:text-white flex items-center justify-center shadow-sm hover:scale-110 active:scale-95 transition-all" title="انستجرام">
+                                            <Instagram size={18} />
+                                        </a>
+                                    )}
+                                    {socialLinks.youtube && (
+                                        <a href={socialLinks.youtube} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-xl bg-red-50 text-red-600 hover:bg-red-600 hover:text-white dark:bg-slate-800/40 dark:text-red-400 dark:hover:bg-red-600 dark:hover:text-white flex items-center justify-center shadow-sm hover:scale-110 active:scale-95 transition-all" title="يوتيوب">
+                                            <Youtube size={18} />
+                                        </a>
+                                    )}
+                                    {socialLinks.website && (
+                                        <a href={socialLinks.website} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white dark:bg-slate-800/40 dark:text-indigo-400 dark:hover:bg-indigo-600 dark:hover:text-white flex items-center justify-center shadow-sm hover:scale-110 active:scale-95 transition-all" title="الموقع الإلكتروني">
+                                            <Globe size={18} />
+                                        </a>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>

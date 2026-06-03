@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, getDocs, orderBy, limit, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { collection, query, getDocs, orderBy, limit, addDoc, serverTimestamp } from '../../services/localFirestore';
+import { db  } from '../../services/localFirestore';
 import { handleFirestoreError, OperationType } from '../../services/firestoreErrorHandler';
 import { useToasts } from '../../hooks/useToasts';
 import { Building2, Plus, Search, Filter, Warehouse, Clock, Home, X } from 'lucide-react';

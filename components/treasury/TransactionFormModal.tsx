@@ -105,7 +105,7 @@ const TransactionFormModal: React.FC<TransactionFormProps> = ({ transaction, onS
       </div>
       <div>
         <label className="block text-sm font-medium">المبلغ</label>
-        <input type="number" step="0.01" name="amount" value={formData.amount} onChange={handleChange} required className={inputStyle} />
+        <input type="number" step="0.01" min="0.01" name="amount" value={formData.amount} onChange={handleChange} required className={inputStyle} />
       </div>
       <div>
         <label className="block text-sm font-medium">الفئة</label>

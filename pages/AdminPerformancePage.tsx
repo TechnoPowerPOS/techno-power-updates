@@ -61,73 +61,14 @@ const AdminPerformancePage: React.FC = () => {
                 ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-6">
-                    <Card title="استهلاك مساحة التخزين وقاعدة البيانات" icon={<HardDrive size={18} className="text-slate-500"/>}>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4">
-                            <div className="space-y-4">
-                                <div className="flex justify-between items-center mb-1">
-                                    <span className="text-sm font-black text-slate-700 dark:text-slate-200 flex items-center gap-2">
-                                        <Database size={16} className="text-blue-500"/> حجم قاعدة البيانات
-                                    </span>
-                                    <span className="text-sm font-bold text-slate-500">{toArabicIndic(metrics?.dbSize || '')}</span>
-                                </div>
-                                <div className="w-full bg-slate-100 dark:bg-slate-800 h-3 rounded-full overflow-hidden border dark:border-slate-700">
-                                    <div className="bg-blue-500 h-full" style={{width: '60%'}}></div>
-                                </div>
-                                <p className="text-[10px] text-slate-400 font-bold italic">نمو البيانات: +0.2% أسبوعياً</p>
-                            </div>
-
-                            <div className="space-y-4">
-                                <div className="flex justify-between items-center mb-1">
-                                    <span className="text-sm font-black text-slate-700 dark:text-slate-200 flex items-center gap-2">
-                                        <HardDrive size={16} className="text-indigo-500"/> استهلاك التخزين (الملفات)
-                                    </span>
-                                    <span className="text-sm font-bold text-slate-500">{toArabicIndic(metrics?.storageUsage || '')}</span>
-                                </div>
-                                <div className="w-full bg-slate-100 dark:bg-slate-800 h-3 rounded-full overflow-hidden border dark:border-slate-700">
-                                    <div className="bg-indigo-500 h-full" style={{width: '45%'}}></div>
-                                </div>
-                                <p className="text-[10px] text-slate-400 font-bold italic">95% صور المنتجات والباركود</p>
-                            </div>
+            <div className="grid grid-cols-1 gap-8">
+                <Card title="بوابات الدفع والاتصاالات الخارجية" icon={<Globe size={18} className="text-blue-500"/>}>
+                     <div className="space-y-4">
+                        <div className="text-center py-4 text-slate-500 text-sm">
+                            لا توجد بيانات حالية
                         </div>
-                    </Card>
-
-                    <Card title="بوابات الدفع والاتصاالات الخارجية" icon={<Globe size={18} className="text-blue-500"/>}>
-                         <div className="space-y-4">
-                            <div className="text-center py-4 text-slate-500 text-sm">
-                                لا توجد بيانات حالية
-                            </div>
-                         </div>
-                    </Card>
-                </div>
-
-                <div className="lg:col-span-1 space-y-6">
-                    <Card title="إدارة النسخ الاحتياطي (Backup)" icon={<RefreshCw size={18} className="text-emerald-500"/>}>
-                        <div className="flex flex-col items-center text-center py-4">
-                            <h4 className="font-black text-slate-800 dark:text-white mt-4">إدارة النسخ الاحتياطي</h4>
-                            <p className="text-xs text-slate-500 mt-2 font-bold italic leading-relaxed">
-                                جار معالجة الميزة
-                            </p>
-                        </div>
-                    </Card>
-
-                    <Card title="سجل الأخطاء والبرمجيات" icon={<Terminal size={18} className="text-rose-500"/>}>
-                         <div className="p-4 bg-slate-900 rounded-xl text-xs font-mono text-emerald-400/90 overflow-hidden relative group">
-                            <div className="text-center text-slate-500 py-4">
-                                 لا توجد أخطاء مسجلة حالياً
-                            </div>
-                         </div>
-                    </Card>
-
-                    <Card title="إصدارات البرنامج" icon={<Activity size={18} className="text-indigo-500"/>}>
-                         <div className="space-y-3">
-                             <div className="text-center text-slate-500 text-sm py-4">
-                                 جاري جمع بيانات الإصدارات...
-                             </div>
-                         </div>
-                    </Card>
-                </div>
+                     </div>
+                </Card>
             </div>
         </div>
     );

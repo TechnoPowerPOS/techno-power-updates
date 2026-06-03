@@ -31,6 +31,49 @@ export type CurrencyCode = keyof typeof CURRENCIES;
 const arabicIndicNumerals = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
 
 /**
+ * Retrieves the preferred decimal places count from local settings.
+ */
+export const getDecimalPlaces = (): number => {
+  try {
+    // 1. Get current branch/db key
+    let dbKey = 'techno_power_ultra_db_v5';
+    const storedBranch = localStorage.getItem('tp_pos_current_branch_id');
+    if (storedBranch) {
+      dbKey = storedBranch === 'main' ? 'techno_power_ultra_db_v5' : `techno_power_ultra_db_v5_${storedBranch}`;
+    }
+    
+    // 2. Fetch from DB
+    const stored = localStorage.getItem(dbKey);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (parsed && parsed.settings && typeof parsed.settings.decimalPlaces === 'number') {
+        return parsed.settings.decimalPlaces;
+      }
+    }
+  } catch (e) {
+    console.error('Error reading decimalPlaces from localStorage', e);
+  }
+  
+  // Try backup checks
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.includes('techno_power_ultra_db_v5')) {
+        const stored = localStorage.getItem(key);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && parsed.settings && typeof parsed.settings.decimalPlaces === 'number') {
+            return parsed.settings.decimalPlaces;
+          }
+        }
+      }
+    }
+  } catch (e) {}
+
+  return 2; // default
+};
+
+/**
  * Converts a number or a string containing a number to Arabic-Indic numerals.
  */
 export const toArabicIndic = (number: number | string): string => {
@@ -38,13 +81,14 @@ export const toArabicIndic = (number: number | string): string => {
 };
 
 /**
- * Formats a numerical amount with Arabic-Indic numerals with 2 decimal places.
+ * Formats a numerical amount with Arabic-Indic numerals with configurable decimal places.
  */
 export const formatAmount = (amount: number | undefined | null): string => {
     const safeAmount = Number(amount) || 0;
+    const decimals = getDecimalPlaces();
     const formattedAmount = safeAmount.toLocaleString('en-US', { 
         minimumFractionDigits: 0, 
-        maximumFractionDigits: 2 
+        maximumFractionDigits: decimals 
     });
     return toArabicIndic(formattedAmount);
 }
@@ -52,8 +96,8 @@ export const formatAmount = (amount: number | undefined | null): string => {
 /**
  * Formats a currency value with Arabic-Indic numerals and the appropriate currency symbol.
  */
-export const formatCurrency = (amount: number | undefined | null, currencyCode: string = 'SAR'): string => {
+export const formatCurrency = (amount: number | undefined | null, currencyCode: string = 'EGP'): string => {
   const code = currencyCode as CurrencyCode;
-  const currency = CURRENCIES[code] || CURRENCIES.SAR;
+  const currency = CURRENCIES[code] || CURRENCIES.EGP;
   return `${formatAmount(amount)} ${currency.symbol}`;
 };

@@ -44,6 +44,8 @@ const FIELD_LABELS: Record<string, string> = {
     hasCustomerSatisfaction: 'رضا العملاء',
     hasActivityLogs: 'سجل النشاطات',
     hasBackup: 'النسخ الاحتياطي',
+    hasAutoBackup: 'النسخ الاحتياطي التلقائي',
+    hasZipBackup: 'تصدير نسخة احتياطية مضغوطة (ZIP)',
     hasLoyalty: 'برنامج الولاء',
     hasMultipleInvoiceDesigns: 'تصاميم فواتير',
     hasNotifications: 'الإشعارات',
@@ -76,7 +78,23 @@ const FIELD_LABELS: Record<string, string> = {
     hasAccountStatements: 'كشوف الحسابات',
     hasNotes: 'المفكرة والملاحظات',
     hasFinancialSettlements: 'التسويات المالية',
-    hasCustomUi: 'تخصيص واجهة المستخدم (Layout/Fonts/Buttons)'
+    hasCustomUi: 'تخصيص واجهة المستخدم (Layout/Fonts/Buttons)',
+    hasStagnantProducts: 'تقرير المنتجات الراكدة (AI)',
+    hasExpirationDates: 'إدارة تواريخ الصلاحية والانتهاء',
+    hasCashierShifts: 'إدارة وسجل ورديات الكاشير',
+    hasSalesDrafts: 'حفظ فواتير المبيعات كمسودات',
+    hasCategories: 'إدارة وسجل فئات المنتجات التفصيلية',
+    hasStockHistory: 'عرض سجل حركات المخزون التفصيلية',
+    hasMixedPayment: 'دفع مختلط (أكثر من وسيلة)',
+    hasDeferredPayment: 'دفع آجل (إضافة مديونية)',
+    hasProductImage: 'رفع صور للمنتجات',
+    hasHRAttendance: 'الحضور والانصراف (أجهزة البصمة)',
+    hasBarcodePrinting: 'طباعة الباركود للمنتجات',
+    hasProductVariants: 'إدارة المتغيرات (مقاسات وألوان)',
+    hasOffers: 'إدارة العروض والخصومات (Offers & Bundles)',
+    hasExchange: 'نظام الاستبدال السريع',
+    hasReservations: 'حجز القطع للزبائن (Layaway)',
+    hasDailyKPIs: 'مؤشرات الأداء اليومية (KPIs)'
 };
 
 const CATEGORIES = [
@@ -90,7 +108,7 @@ const CATEGORIES = [
         id: 'hr_granular',
         title: 'الموارد البشرية والموظفين',
         icon: Users,
-        fields: ['hasHRPersonnel', 'hasHRContracts', 'hasHRSalaries', 'hasHRVacations', 'hasHRPerformance', 'hasHRCommissions']
+        fields: ['hasHRPersonnel', 'hasHRContracts', 'hasHRSalaries', 'hasHRVacations', 'hasHRPerformance', 'hasHRCommissions', 'hasHRAttendance']
     },
     {
         id: 'ops_granular',
@@ -114,13 +132,13 @@ const CATEGORIES = [
         id: 'features',
         title: 'الميزات المتقدمة والأدوات',
         icon: Zap,
-        fields: ['hasAI', 'hasEnterprise', 'hasPartners', 'hasShipping', 'hasAccounting', 'hasAdvancedReports', 'hasAPI', 'hasEcommerceAPI', 'hasWhatsApp', 'hasLoyalty', 'hasCreditCustomer', 'hasInstallments', 'hasCommissions', 'hasExcelExport', 'hasExcelImport', 'hasLogoUpload', 'hasProEmail', 'hasNotes', 'hasCustomUi']
+        fields: ['hasAI', 'hasDailyKPIs', 'hasEnterprise', 'hasPartners', 'hasShipping', 'hasAccounting', 'hasAdvancedReports', 'hasAPI', 'hasEcommerceAPI', 'hasWhatsApp', 'hasLoyalty', 'hasCreditCustomer', 'hasInstallments', 'hasMixedPayment', 'hasDeferredPayment', 'hasCommissions', 'hasExcelExport', 'hasExcelImport', 'hasLogoUpload', 'hasProEmail', 'hasNotes', 'hasCustomUi', 'hasStagnantProducts', 'hasExpirationDates', 'hasCashierShifts', 'hasSalesDrafts', 'hasCategories', 'hasStockHistory', 'hasProductImage']
     },
     {
         id: 'system',
         title: 'النظام والعمليات',
         icon: Box,
-        fields: ['hasCustomerSatisfaction', 'hasBarcode', 'hasEmployeePerformance', 'hasInventoryAudit', 'hasStockTransfer', 'hasActivityLogs', 'hasBackup', 'hasMultipleInvoiceDesigns', 'hasNotifications']
+        fields: ['hasOffers', 'hasExchange', 'hasReservations', 'hasCustomerSatisfaction', 'hasBarcode', 'hasBarcodePrinting', 'hasProductVariants', 'hasEmployeePerformance', 'hasInventoryAudit', 'hasStockTransfer', 'hasActivityLogs', 'hasBackup', 'hasAutoBackup', 'hasZipBackup', 'hasMultipleInvoiceDesigns', 'hasNotifications']
     }
 ];
 

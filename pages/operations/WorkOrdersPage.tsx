@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { collection, query, getDocs, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, orderBy } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { collection, query, getDocs, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, orderBy } from '../../services/localFirestore';
+import { db  } from '../../services/localFirestore';
 import { handleFirestoreError, OperationType } from '../../services/firestoreErrorHandler';
 import { useToasts } from '../../hooks/useToasts';
 import { Wrench, Plus, Search, Filter, Clock, CheckCircle2, AlertCircle, Trash2, Edit3, User, Calendar, Tag } from 'lucide-react';

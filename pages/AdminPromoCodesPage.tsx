@@ -5,6 +5,7 @@ import Button from '../components/ui/Button';
 import { adminToolService, PromoCode } from '../services/adminToolService';
 import { toArabicIndic } from '../utils/localization';
 import { useToasts } from '../hooks/useToasts';
+import { useSettings } from '../hooks/useSettings';
 import { 
     Tag, Plus, Trash2, Calendar, 
     Hash, DollarSign, Percent, Copy,
@@ -16,6 +17,7 @@ const AdminPromoCodesPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [isAdding, setIsAdding] = useState(false);
     const { addToast } = useToasts();
+    const { settings } = useSettings();
 
     const [newPromo, setNewPromo] = useState<Omit<PromoCode, 'id' | 'usageCount' | 'status'>>({
         code: '',
@@ -94,7 +96,7 @@ const AdminPromoCodesPage: React.FC = () => {
                                 className="w-full p-2.5 rounded-xl border dark:border-slate-700 bg-white dark:bg-slate-800 font-bold"
                             >
                                 <option value="percentage">نسبة مئوية (%)</option>
-                                <option value="fixed">مبلغ ثابت (SAR)</option>
+                                <option value="fixed">مبلغ ثابت ({settings?.currency || 'EGP'})</option>
                             </select>
                         </div>
                         <div>
@@ -163,7 +165,7 @@ const AdminPromoCodesPage: React.FC = () => {
                                         <td className="px-4 py-4">
                                             <div className="flex items-center gap-1 font-black text-slate-800 dark:text-white">
                                                 {toArabicIndic(promo.discountValue)}
-                                                {promo.discountType === 'percentage' ? <Percent size={14}/> : <span className="text-[10px] opacity-60">SAR</span>}
+                                                {promo.discountType === 'percentage' ? <Percent size={14}/> : <span className="text-[10px] opacity-60">{settings?.currency || 'EGP'}</span>}
                                             </div>
                                         </td>
                                         <td className="px-4 py-4 text-xs font-bold text-slate-500">
@@ -217,9 +219,9 @@ const AdminPromoCodesPage: React.FC = () => {
                                 {toArabicIndic(
                                     Math.round(promos.reduce((total, p) => {
                                         if (p.discountType === 'fixed') return total + (p.discountValue * p.usageCount);
-                                        return total + (400 * (p.discountValue / 100) * p.usageCount); // Assuming 400 SAR avg
+                                        return total + (400 * (p.discountValue / 100) * p.usageCount); // Assuming 400 currency avg
                                     }, 0))
-                                )} SAR
+                                )} {settings?.currency || 'EGP'}
                             </span>
                             <span className="text-xs text-slate-400 font-bold">قيمة الخصومات المقدرة</span>
                         </div>

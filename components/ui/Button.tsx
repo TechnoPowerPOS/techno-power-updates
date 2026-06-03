@@ -1,5 +1,6 @@
 import React from 'react';
 import { useSettings } from '../../hooks/useSettings';
+import { motion } from 'motion/react';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
@@ -27,7 +28,7 @@ const Button: React.FC<ButtonProps> = ({
     pill: 'rounded-full'
   };
 
-  const baseStyles = `relative font-bold focus:outline-none focus:ring-4 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transform active:scale-[0.98] overflow-hidden`;
+  const baseStyles = `relative font-bold focus:outline-none focus:ring-4 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 overflow-hidden`;
   const shapeClass = shapeStyles[shape as keyof typeof shapeStyles] || 'rounded-2xl';
 
   const sizeStyles = {
@@ -49,11 +50,12 @@ const Button: React.FC<ButtonProps> = ({
 
   const customStyle = isPrimaryCustom ? { backgroundColor: customColor } : {};
 
-  // Remove any conflicting rounded classes from incoming className to respect global shape setting
   const cleanedClassName = className.replace(/rounded-[^\s]+/g, '');
 
   return (
-    <button
+    <motion.button
+      whileHover={!isLoading && !props.disabled ? { scale: 1.01 } : {}}
+      whileTap={!isLoading && !props.disabled ? { scale: 0.97 } : {}}
       type={props.type || "button"}
       className={`${baseStyles} ${shapeClass} ${sizeStyles[size]} ${variantStyles[variant]} ${cleanedClassName}`}
       disabled={isLoading || props.disabled}
@@ -68,8 +70,8 @@ const Button: React.FC<ButtonProps> = ({
         </svg>
       )}
       <span className={`z-10 transition-opacity duration-200 ${isLoading ? 'opacity-0' : 'opacity-100'} flex items-center justify-center gap-2`}>{children}</span>
-      {isLoading && <span className="absolute z-10">{children}</span>}
-    </button>
+      {isLoading && <span className="absolute z-10 opacity-0 pointer-events-none">{children}</span>}
+    </motion.button>
   );
 };
 

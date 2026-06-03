@@ -21,7 +21,6 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles, onSave, onCancel, isLo
   
   const [formData, setFormData] = useState({
     name: '',
-    email: '',
     phone: '',
     password: '',
     roleId: '',
@@ -33,7 +32,6 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles, onSave, onCancel, isLo
     if (user) {
       setFormData({
         name: user.name,
-        email: user.email,
         phone: user.phone || '',
         password: '', // Don't pre-fill password for security
         roleId: user.roleId,
@@ -43,7 +41,6 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles, onSave, onCancel, isLo
     } else {
         setFormData({
             name: '',
-            email: '',
             phone: '',
             password: '',
             roleId: roles[0]?.id || '',
@@ -117,15 +114,9 @@ const UserForm: React.FC<UserFormProps> = ({ user, roles, onSave, onCancel, isLo
         <label className="block text-sm font-medium">الاسم الكامل</label>
         <input type="text" name="name" value={formData.name} onChange={handleChange} required className={inputStyle} />
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium">البريد الإلكتروني</label>
-          <input type="email" name="email" value={formData.email} onChange={handleChange} required className={inputStyle} />
-        </div>
-        <div>
-          <label className="block text-sm font-medium">رقم التواصل</label>
-          <input type="text" name="phone" value={formData.phone} onChange={handleChange} className={inputStyle} placeholder="05xxxxxxxx" />
-        </div>
+      <div>
+        <label className="block text-sm font-medium">رقم التواصل</label>
+        <input type="text" name="phone" value={formData.phone} onChange={handleChange} className={inputStyle} placeholder="05xxxxxxxx" />
       </div>
        <div>
         <label className="block text-sm font-medium">كلمة المرور</label>

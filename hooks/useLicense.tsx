@@ -12,6 +12,7 @@ import { adminToolService } from '../services/adminToolService';
 import { setDynamicPlanLimits } from '../utils/planPermissions';
 import { getCurrentBranchId } from '../services/branchService';
 import { LicenseInfo } from '../types';
+import { secureStorage } from '../utils/secureStorage';
 
 interface LicenseContextType {
     isLicensed: boolean;
@@ -20,7 +21,7 @@ interface LicenseContextType {
     licenseType: string;
     licenseInfo: LicenseInfo;
     activateLicense: (key: string, referralCode?: string) => Promise<{ success: boolean; message: string }>;
-    activateFreePlan: () => Promise<void>;
+    activateFreePlan: () => Promise<{ success: boolean; message: string }>;
     activateTrial: () => Promise<{ success: boolean; message: string }>;
     deviceId: string;
     verify: () => Promise<void>;
@@ -128,28 +129,44 @@ export const LicenseProvider: React.FC<{ children: ReactNode }> = ({ children })
     };
 
     const activateFreePlan = async () => {
-        const branchId = getCurrentBranchId();
-        const key = branchId === 'main' ? 'tp_license_key' : `tp_license_key_${branchId}`;
-        const actKey = branchId === 'main' ? 'tp_free_activation' : `tp_free_activation_${branchId}`;
-        
-        localStorage.setItem(key, 'FREE-PLAN-ACTIVE');
-        secureStorage.setItem(key, 'FREE-PLAN-ACTIVE');
-        let freeAct = localStorage.getItem(actKey);
-        if (!freeAct) {
-            freeAct = new Date().toISOString();
-            localStorage.setItem(actKey, freeAct);
+        // Prevent if currently on an active paid plan
+        if (isLicensed && status === 'active' && licenseType && !['Free', 'Trial'].includes(licenseType)) {
+             return { success: false, message: 'عذراً، لا يمكن تفعيل خطة مجانية لمن لديه اشتراك مدفوع فعال.' };
         }
-        setIsLicensed(true);
-        setStatus('active');
-        setLicenseType('Free');
-        setLicenseInfo({
-            status: 'LICENSED' as any,
-            type: 'Free',
-            licenseKey: 'FREE-PLAN-ACTIVE',
-            deviceId: deviceId,
-            activationDate: freeAct,
-            createdAt: new Date().toISOString()
-        });
+        
+        try {
+            const branchId = getCurrentBranchId();
+            const key = branchId === 'main' ? 'tp_license_key' : `tp_license_key_${branchId}`;
+            const typeKeyStr = branchId === 'main' ? 'tp_license_type' : `tp_license_type_${branchId}`;
+            const actKey = branchId === 'main' ? 'tp_free_activation' : `tp_free_activation_${branchId}`;
+            
+            localStorage.setItem(key, 'FREE-PLAN-ACTIVE');
+            secureStorage.setItem(key, 'FREE-PLAN-ACTIVE');
+            localStorage.setItem(typeKeyStr, 'Free');
+            secureStorage.setItem(typeKeyStr, 'Free');
+            
+            let freeAct = localStorage.getItem(actKey);
+            if (!freeAct) {
+                freeAct = new Date().toISOString();
+                localStorage.setItem(actKey, freeAct);
+            }
+            setIsLicensed(true);
+            setStatus('active');
+            setLicenseType('Free');
+            setLicenseInfo({
+                status: 'LICENSED' as any,
+                type: 'Free',
+                licenseKey: 'FREE-PLAN-ACTIVE',
+                deviceId: deviceId,
+                activationDate: freeAct,
+                createdAt: new Date().toISOString()
+            });
+            await verify();
+            return { success: true, message: 'تم تفعيل الخطة المجانية بنجاح.' };
+        } catch (e) {
+            console.error(e);
+            return { success: false, message: 'حدث خطأ أثناء تفعيل الخطة المجانية.' };
+        }
     };
 
     const value = React.useMemo(() => ({ 

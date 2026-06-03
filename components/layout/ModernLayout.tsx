@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, Navigate, Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../../hooks/useAuth';
 import { useLicense } from '../../hooks/useLicense';
 import { useSettings } from '../../hooks/useSettings';
 import SplashScreen from './SplashScreen';
 import ToastContainer from '../ui/ToastContainer';
-import { Menu, Search, Bell, Settings as SettingsIcon, LogOut, ChevronDown, Sun, Moon, X, Home } from 'lucide-react';
+import { Menu, Search, Bell, Settings as SettingsIcon, LogOut, ChevronDown, Sun, Moon, X, Home, PlusCircle } from 'lucide-react';
 import { NAV_LINKS, NavLinkType, NavLinkGroup } from '../../constants';
 import { useTranslation } from '../../hooks/useTranslation';
 import { getPlanLimits } from '../../utils/planPermissions';
@@ -15,6 +16,7 @@ import NotificationsDropdown from './NotificationsDropdown';
 import SidebarBranchSwitcher from './SidebarBranchSwitcher';
 import { useNotifications } from '../../hooks/useNotifications';
 import { useTheme } from '../../hooks/useTheme';
+import { useShift } from '../../hooks/useShift';
 import { GlobalSettings } from '../../types';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
@@ -25,9 +27,10 @@ interface ModernLayoutProps {
 }
 
 const ModernLayout: React.FC<ModernLayoutProps> = ({ layoutType = 'modern' }) => {
-    const { user, isLoading: authLoading, logout } = useAuth();
+    const { user, isLoading: authLoading, logout, userHasPermission } = useAuth();
     const { isLicensed, isLoading: licenseLoading, licenseType } = useLicense();
     const { settings } = useSettings();
+    const { currentShift } = useShift();
     const { t } = useTranslation();
     const navigate = useNavigate();
     const { pathname } = useLocation();
@@ -65,9 +68,11 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ layoutType = 'modern' }) =>
         // First filter by hidden modules in settings
         if (hiddenModules.includes(link.id)) return false;
         
+        // Filter by user permissions
+        if (link.permission && !userHasPermission(link.permission as any)) return false;
+        
         if (link.id === 'sales_crm') {
              // Let the category be visible, but filter its children based on permissions/limits
-             // For example, CRM (the whole management interface) could be hidden if maxCustomers <= 50, but we filter that below in child loop.
              return true;
         }
 
@@ -81,6 +86,9 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ layoutType = 'modern' }) =>
                 ...link,
                 children: link.children.filter(child => {
                     if (hiddenModules.includes(child.id)) return false;
+                    
+                    // Filter by user permissions
+                    if (child.permission && !userHasPermission(child.permission as any)) return false;
                     
                     if (child.id === 'crm' && planLimits.maxCustomers <= 50) return false;
                     
@@ -120,13 +128,17 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ layoutType = 'modern' }) =>
     });
 
     // Sidebar Tabs Logic
-    const [openTabsIds, setOpenTabsIds] = useState<string[]>(() => {
-        try {
-            const saved = localStorage.getItem('pos_open_tabs');
-            if (saved) return JSON.parse(saved);
-        } catch {}
-        return [];
-    });
+    const [openTabsIds, setOpenTabsIds] = useState<string[]>([]);
+    
+    // Initial fetch from localStorage
+    useEffect(() => {
+        if (user?.id) {
+            try {
+                const saved = localStorage.getItem(`pos_open_tabs_${user.id}`);
+                if (saved) setOpenTabsIds(JSON.parse(saved));
+            } catch {}
+        }
+    }, [user?.id]);
 
     const flattenedLinks: NavLinkType[] = [];
     filteredNavLinks.forEach(link => {
@@ -137,10 +149,18 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ layoutType = 'modern' }) =>
         }
     });
 
+    useEffect(() => {
+        if (user?.id && openTabsIds.length > 0) {
+            localStorage.setItem(`pos_open_tabs_${user.id}`, JSON.stringify(openTabsIds));
+        } else if (user?.id && openTabsIds.length === 0) {
+            localStorage.setItem(`pos_open_tabs_${user.id}`, JSON.stringify([]));
+        }
+    }, [openTabsIds, user?.id]);
+
     const isSidebarEnabled = settings?.enableSidebar ?? false;
 
     // Sidebar Sorting Logic based on user preferences
-    const [sortedLinks, setSortedLinks] = useState<NavLinkType[]>(flattenedLinks);
+    const [sortedLinks, setSortedLinks] = useState<NavLinkType[]>([]);
     
     useEffect(() => {
         if (isSidebarEnabled) {
@@ -149,26 +169,55 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ layoutType = 'modern' }) =>
     }, [isSidebarEnabled]);
 
     useEffect(() => {
-        try {
-            const savedOrder = localStorage.getItem('pos_sidebar_order');
-            if (savedOrder) {
-                const orderedIds: string[] = JSON.parse(savedOrder);
-                const newLinks = [...flattenedLinks].sort((a, b) => {
-                    const indexA = orderedIds.indexOf(a.id);
-                    const indexB = orderedIds.indexOf(b.id);
-                    if (indexA === -1 && indexB === -1) return 0;
-                    if (indexA === -1) return 1;
-                    if (indexB === -1) return -1;
-                    return indexA - indexB;
+        const loadSettings = () => {
+            try {
+                const savedOrder = user?.id ? localStorage.getItem(`pos_sidebar_order_${user.id}`) : null;
+                const savedHidden = user?.id ? localStorage.getItem(`pos_sidebar_hidden_groups_${user.id}`) : null;
+                
+                let navLinksToProcess = [...filteredNavLinks];
+                let hiddenGroups: string[] = [];
+                
+                if (savedHidden) {
+                    hiddenGroups = JSON.parse(savedHidden);
+                }
+
+                // Filter out hidden groups/items
+                navLinksToProcess = navLinksToProcess.filter(link => !hiddenGroups.includes(link.id));
+
+                // Apply order
+                if (savedOrder) {
+                    const orderedIds: string[] = JSON.parse(savedOrder);
+                    navLinksToProcess.sort((a, b) => {
+                        const indexA = orderedIds.indexOf(a.id);
+                        const indexB = orderedIds.indexOf(b.id);
+                        if (indexA === -1 && indexB === -1) return 0;
+                        if (indexA === -1) return 1;
+                        if (indexB === -1) return -1;
+                        return indexA - indexB;
+                    });
+                }
+
+                // Flatten the final sorted and filtered links
+                const finalFlattened: NavLinkType[] = [];
+                navLinksToProcess.forEach(link => {
+                    if ('children' in link) {
+                        finalFlattened.push(...(link.children as NavLinkType[]));
+                    } else {
+                        finalFlattened.push(link as NavLinkType);
+                    }
                 });
-                setSortedLinks(newLinks);
-            } else {
+
+                setSortedLinks(finalFlattened);
+            } catch (err) {
+                console.error('Error loading sidebar settings', err);
                 setSortedLinks(flattenedLinks);
             }
-        } catch {
-            setSortedLinks(flattenedLinks);
-        }
-    }, [pathname, globalSettings]); // Refresh when layout mounts/updates or global settings change
+        };
+
+        loadSettings();
+        window.addEventListener('sidebar_updated', loadSettings);
+        return () => window.removeEventListener('sidebar_updated', loadSettings);
+    }, [pathname, globalSettings, user?.id, filteredNavLinks.length]); 
 
     const currentLink = flattenedLinks.find(link => link.href === pathname);
 
@@ -176,9 +225,7 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ layoutType = 'modern' }) =>
         if (currentLink && currentLink.id !== 'home') {
             setOpenTabsIds(prev => {
                 if (!prev.includes(currentLink.id)) {
-                    const updated = [...prev, currentLink.id];
-                    localStorage.setItem('pos_open_tabs', JSON.stringify(updated));
-                    return updated;
+                    return [...prev, currentLink.id];
                 }
                 return prev;
             });
@@ -190,7 +237,6 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ layoutType = 'modern' }) =>
         e.stopPropagation();
         const updated = openTabsIds.filter(t => t !== id);
         setOpenTabsIds(updated);
-        localStorage.setItem('pos_open_tabs', JSON.stringify(updated));
         
         if (currentLink?.id === id) {
             const lastTabId = updated[updated.length - 1];
@@ -206,7 +252,6 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ layoutType = 'modern' }) =>
 
     const handleCloseAllTabs = () => {
         setOpenTabsIds([]);
-        localStorage.setItem('pos_open_tabs', JSON.stringify([]));
         navigate('/');
     };
 
@@ -247,15 +292,16 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ layoutType = 'modern' }) =>
                         const Icon = link.icon;
                         if (link.id === 'pos') {
                             return (
-                                <Link 
-                                    key={link.id} 
-                                    to={link.href} 
-                                    onClick={() => isSidebarEnabled && setIsSidebarOpen(false)}
-                                    className={`flex items-center gap-3 px-3 py-3 rounded-2xl transition-all shadow-sm group mb-6 ${isUltra ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/25 hover:shadow-blue-500/40' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-500/20'}`}
-                                >
-                                    <Icon size={20} className="shrink-0" />
-                                    {(isSidebarOpen || isSidebarEnabled) && <span className="font-bold text-sm truncate">{t(link.t_key)}</span>}
-                                </Link>
+                                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} key={link.id} className="mb-6">
+                                    <Link 
+                                        to={link.href} 
+                                        onClick={() => isSidebarEnabled && setIsSidebarOpen(false)}
+                                        className={`flex items-center gap-3 px-3 py-3 rounded-2xl transition-all shadow-sm group ${isUltra ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/25 hover:shadow-blue-500/40' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-500/20'}`}
+                                    >
+                                        <Icon size={20} className="shrink-0" />
+                                        {(isSidebarOpen || isSidebarEnabled) && <span className="font-bold text-sm truncate">{t(link.t_key)}</span>}
+                                    </Link>
+                                </motion.div>
                             );
                         }
                         return (
@@ -287,7 +333,7 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ layoutType = 'modern' }) =>
             {/* Main Content Area */}
             <div className={`flex-1 flex flex-col min-w-0 bg-transparent`}>
                 {/* Topbar */}
-                <header className={`flex items-center justify-between shrink-0 z-10 px-4 md:px-8 bg-white dark:bg-slate-950 flex-col md:flex-row shadow-[0_4px_24px_rgba(0,0,0,0.02)] border-b border-slate-100 dark:border-slate-800/50 py-3 md:py-0 md:h-20 gap-3 md:gap-0`}>
+                <header className={`flex items-center justify-between shrink-0 relative z-[150] px-4 md:px-8 bg-white dark:bg-slate-950 flex-col md:flex-row shadow-[0_4px_24px_rgba(0,0,0,0.02)] border-b border-slate-100 dark:border-slate-800/50 py-3 md:py-0 md:h-20 gap-3 md:gap-0`}>
                     
                     {/* Left/Right Container for Search & Tabs */}
                     <div className="flex items-center flex-1 w-full gap-4 overflow-hidden">
@@ -376,6 +422,15 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ layoutType = 'modern' }) =>
                     </div>
                     
                     <div className="flex items-center gap-2 md:gap-4 shrink-0 mt-3 md:mt-0">
+                        {settings?.enableShiftManagement && !currentShift && (
+                            <button 
+                                onClick={() => navigate('/pos')} 
+                                className="flex items-center gap-2 px-4 py-2 bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 rounded-full text-xs font-black hover:bg-emerald-200 dark:hover:bg-emerald-900/40 transition-all border border-emerald-200 dark:border-emerald-900 animate-pulse-slow shadow-sm"
+                            >
+                                <PlusCircle size={14} /> فتح وردية جديدة 🔓
+                            </button>
+                        )}
+
                         <Tooltip text={theme === 'dark' ? 'الوضع النهاري' : 'الوضع الليلي'}>
                             <button onClick={toggleTheme} className={`p-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors ${isUltra ? 'rounded-full' : 'rounded-xl'}`}>
                                 {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
@@ -433,8 +488,8 @@ const ModernLayout: React.FC<ModernLayoutProps> = ({ layoutType = 'modern' }) =>
                 </header>
 
                 {/* Page Content */}
-                <main className={`flex-1 overflow-x-hidden overflow-y-auto scroll-smooth ${isUltra ? 'p-6 md:p-8 bg-slate-50/50 dark:bg-slate-900 flex flex-col' : 'bg-slate-50 dark:bg-slate-950/20 p-4 md:p-6 lg:p-8 flex flex-col'}`}>
-                    <div className="max-w-[2000px] w-full mx-auto flex-1">
+                <main className={`flex-1 overflow-x-hidden overflow-y-auto scroll-smooth ${isUltra ? 'bg-slate-50/50 dark:bg-slate-900 flex flex-col' : 'bg-slate-50 dark:bg-slate-950/20 flex flex-col'}`}>
+                    <div className={`max-w-[2000px] w-full mx-auto flex-1 ${isUltra ? 'p-6 md:p-8' : 'p-4 md:p-6 lg:p-8'}`}>
                         <Outlet />
                     </div>
                 </main>
